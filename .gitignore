@@ -1,0 +1,6 @@
+DerivedData/
+*.xcuserdata/
+*.xcuserstate
+.DS_Store
+incoming-*.png
+incoming-*.PNG
