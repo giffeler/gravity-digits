@@ -25,8 +25,11 @@ enum PerformanceConfig {
     static let maxGravityMagnitude: CGFloat = 1.35
     static let velocityDamping: CGFloat = 0.992
     static let edgeRestitution: CGFloat = 0.28
+    static let edgeTangentialDamping: CGFloat = 0.88
     static let glyphRestitution: CGFloat = 0.12
     static let glyphTangentialDamping: CGFloat = 0.82
+    static let displayCornerRadiusRatio: CGFloat = 0.18
+    static let displayEdgeInset: CGFloat = 2.0
 
     static let minimumParticleRadius: CGFloat = 1.0
     static let maximumParticleRadius: CGFloat = 1.75

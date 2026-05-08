@@ -43,7 +43,7 @@ On device, `CMMotionManager` reads accelerometer updates while the app is active
 - Uses that same rendered texture as the visible foreground time.
 - Simulates particles manually with a fixed timestep.
 - Treats white mask pixels as solid glyph obstacles.
-- Treats screen edges as solid boundaries.
+- Treats the visible watch display as a rounded solid boundary with a small inset.
 - Starts with 800 particles and can reduce the active count if frame timing is too high.
 
 ## Known Limitations

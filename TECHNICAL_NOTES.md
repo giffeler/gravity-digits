@@ -7,7 +7,7 @@
 The particle engine uses:
 
 - `isObstacle(point:)` to test mask occupancy in scene coordinates.
-- `approximateNormal(point:)` to estimate a local surface normal from finite differences.
+- `approximateNormal(point:)` to read a precomputed local surface normal.
 
 On collision, a particle is pushed outward along the estimated normal. Velocity into the glyph is reflected with low restitution, then tangential velocity is damped so particles slide and settle around the digit contours instead of bouncing aggressively.
 
@@ -15,7 +15,9 @@ The visible time is an `SKSpriteNode` built from the same bitmap render, so the 
 
 ## Particle Simulation
 
-Particles are plain Swift structs with position, velocity, radius, and alpha. The app does not create SpriteKit physics bodies per particle. `ParticleSystem` performs manual integration with a fixed 30 Hz timestep, edge collision, glyph collision, and light velocity damping.
+Particles are plain Swift structs with position, velocity, radius, and alpha. The app does not create SpriteKit physics bodies per particle. `ParticleSystem` performs manual integration with a fixed 30 Hz timestep, display-boundary collision, glyph collision, and light velocity damping.
+
+The display boundary is modeled as a rounded rectangle with a small inset, so particles avoid the rounded Apple Watch screen corners instead of treating the scene as a full rectangular canvas. The same boundary is used when spawning particles and after collision correction, which keeps particles from getting stranded outside the visible field.
 
 Rendering uses reusable `SKSpriteNode` instances with a small circular texture. Nodes are created once and updated in place each frame; they are not created or destroyed inside `update()`.
 
