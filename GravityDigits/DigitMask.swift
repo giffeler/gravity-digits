@@ -16,6 +16,7 @@ final class DigitMask {
     private let bytes: [UInt8]
     private let normalX: [Float]
     private let normalY: [Float]
+    private let potentialContact: [UInt8]
     private let obstacleBounds: CGRect?
 
     private init(
@@ -27,6 +28,7 @@ final class DigitMask {
         bytes: [UInt8],
         normalX: [Float],
         normalY: [Float],
+        potentialContact: [UInt8],
         obstacleBounds: CGRect?,
         image: CGImage
     ) {
@@ -38,6 +40,7 @@ final class DigitMask {
         self.bytes = bytes
         self.normalX = normalX
         self.normalY = normalY
+        self.potentialContact = potentialContact
         self.obstacleBounds = obstacleBounds
         self.texture = SKTexture(cgImage: image)
         self.texture.filteringMode = .linear
@@ -125,6 +128,12 @@ final class DigitMask {
         }
 
         let normals = makeNormalField(bytes: alphaBytes, width: pixelWidth, height: pixelHeight, scale: scale)
+        let potentialContact = makePotentialContactMap(
+            bytes: alphaBytes,
+            width: pixelWidth,
+            height: pixelHeight,
+            scale: scale
+        )
 
         return DigitMask(
             text: text,
@@ -135,6 +144,7 @@ final class DigitMask {
             bytes: alphaBytes,
             normalX: normals.x,
             normalY: normals.y,
+            potentialContact: potentialContact,
             obstacleBounds: obstacleBounds,
             image: image
         )
@@ -165,11 +175,20 @@ final class DigitMask {
         guard mightIntersectObstacle(center: center, radius: radius) else { return nil }
 
         let paddedRadius = radius + (1.0 / scale)
-        let radiusSquared = paddedRadius * paddedRadius
         let centerX = center.x * scale
         let centerY = center.y * scale
         let centerPixelX = Int(centerX.rounded(.down))
         let centerPixelY = Int(centerY.rounded(.down))
+
+        if centerPixelX >= 0,
+           centerPixelY >= 0,
+           centerPixelX < width,
+           centerPixelY < height,
+           potentialContact[centerPixelY * width + centerPixelX] == 0 {
+            return nil
+        }
+
+        let radiusSquared = paddedRadius * paddedRadius * scale * scale
         let pixelRadius = Int((paddedRadius * scale).rounded(.up))
         let minX = max(0, centerPixelX - pixelRadius)
         let maxX = min(width - 1, centerPixelX + pixelRadius)
@@ -185,13 +204,12 @@ final class DigitMask {
             for x in minX...maxX {
                 guard bytes[y * width + x] > Self.obstacleThreshold else { continue }
 
-                let point = CGPoint(x: (CGFloat(x) + 0.5) / scale, y: (CGFloat(y) + 0.5) / scale)
-                let dx = point.x - center.x
-                let dy = point.y - center.y
+                let dx = CGFloat(x) + 0.5 - centerX
+                let dy = CGFloat(y) + 0.5 - centerY
                 let distance = dx * dx + dy * dy
                 if distance <= radiusSquared, distance < bestDistance {
                     bestDistance = distance
-                    bestPoint = point
+                    bestPoint = CGPoint(x: (CGFloat(x) + 0.5) / scale, y: (CGFloat(y) + 0.5) / scale)
                 }
             }
         }
@@ -266,6 +284,30 @@ final class DigitMask {
     private static func alpha(atX x: Int, y: Int, bytes: [UInt8], width: Int, height: Int) -> UInt8 {
         guard x >= 0, y >= 0, x < width, y < height else { return 0 }
         return bytes[y * width + x]
+    }
+
+    private static func makePotentialContactMap(bytes: [UInt8], width: Int, height: Int, scale: CGFloat) -> [UInt8] {
+        var map = [UInt8](repeating: 0, count: width * height)
+        let maxPaddedRadius = (PerformanceConfig.maximumParticleRadius + (1.0 / scale)) * scale
+        let pixelRadius = Int((maxPaddedRadius + 1.0).rounded(.up))
+
+        for y in 0..<height {
+            for x in 0..<width where bytes[y * width + x] > obstacleThreshold {
+                let minX = max(0, x - pixelRadius)
+                let maxX = min(width - 1, x + pixelRadius)
+                let minY = max(0, y - pixelRadius)
+                let maxY = min(height - 1, y + pixelRadius)
+
+                for markY in minY...maxY {
+                    let row = markY * width
+                    for markX in minX...maxX {
+                        map[row + markX] = 1
+                    }
+                }
+            }
+        }
+
+        return map
     }
 
     private static func fallbackNormal(

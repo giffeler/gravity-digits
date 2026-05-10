@@ -207,13 +207,12 @@ final class ParticleSystem {
     }
 
     private func resolveGlyphCollision(_ particle: inout Particle, previousPosition: CGPoint, mask: DigitMask) {
-        guard mask.mightIntersectObstacle(from: previousPosition, to: particle.position, radius: particle.radius),
-              let hitPoint = collisionPoint(
-                for: particle.position,
-                previousPosition: previousPosition,
-                radius: particle.radius,
-                mask: mask
-              ) else {
+        guard let hitPoint = collisionPoint(
+            for: particle.position,
+            previousPosition: previousPosition,
+            radius: particle.radius,
+            mask: mask
+        ) else {
             return
         }
 
