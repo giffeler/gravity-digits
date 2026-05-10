@@ -98,7 +98,7 @@ final class DigitMask {
         var maxObstacleY = -1
 
         for y in 0..<pixelHeight {
-            let sourceRow = y * bytesPerRow
+            let sourceRow = (pixelHeight - 1 - y) * bytesPerRow
             let destinationRow = y * pixelWidth
             for x in 0..<pixelWidth {
                 let alpha = rgba[sourceRow + x * bytesPerPixel + 3]
@@ -159,6 +159,44 @@ final class DigitMask {
 
     func isObstacle(point: CGPoint) -> Bool {
         sample(point: point) > Self.obstacleThreshold
+    }
+
+    func contactPoint(around center: CGPoint, radius: CGFloat) -> CGPoint? {
+        guard mightIntersectObstacle(center: center, radius: radius) else { return nil }
+
+        let paddedRadius = radius + (1.0 / scale)
+        let radiusSquared = paddedRadius * paddedRadius
+        let centerX = center.x * scale
+        let centerY = center.y * scale
+        let centerPixelX = Int(centerX.rounded(.down))
+        let centerPixelY = Int(centerY.rounded(.down))
+        let pixelRadius = Int((paddedRadius * scale).rounded(.up))
+        let minX = max(0, centerPixelX - pixelRadius)
+        let maxX = min(width - 1, centerPixelX + pixelRadius)
+        let minY = max(0, centerPixelY - pixelRadius)
+        let maxY = min(height - 1, centerPixelY + pixelRadius)
+
+        guard minX <= maxX, minY <= maxY else { return nil }
+
+        var bestPoint: CGPoint?
+        var bestDistance = CGFloat.greatestFiniteMagnitude
+
+        for y in minY...maxY {
+            for x in minX...maxX {
+                guard bytes[y * width + x] > Self.obstacleThreshold else { continue }
+
+                let point = CGPoint(x: (CGFloat(x) + 0.5) / scale, y: (CGFloat(y) + 0.5) / scale)
+                let dx = point.x - center.x
+                let dy = point.y - center.y
+                let distance = dx * dx + dy * dy
+                if distance <= radiusSquared, distance < bestDistance {
+                    bestDistance = distance
+                    bestPoint = point
+                }
+            }
+        }
+
+        return bestPoint
     }
 
     func approximateNormal(point: CGPoint) -> CGVector {

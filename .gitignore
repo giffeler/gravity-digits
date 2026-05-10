@@ -4,3 +4,4 @@ DerivedData/
 .DS_Store
 incoming-*.png
 incoming-*.PNG
+Signing.local.xcconfig

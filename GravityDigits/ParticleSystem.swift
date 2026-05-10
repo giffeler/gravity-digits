@@ -154,22 +154,37 @@ final class ParticleSystem {
 
         for index in 0..<count {
             var particle = particles[index]
-            let previousPosition = particle.position
             particle.velocity.dx += gravity.dx * timeStep
             particle.velocity.dy += gravity.dy * timeStep
             particle.velocity.dx *= PerformanceConfig.velocityDamping
             particle.velocity.dy *= PerformanceConfig.velocityDamping
 
-            particle.position.x += particle.velocity.dx * timeStep
-            particle.position.y += particle.velocity.dy * timeStep
+            moveParticle(&particle, boundary: boundary, mask: mask, timeStep: timeStep)
+
+            particles[index] = particle
+        }
+    }
+
+    private func moveParticle(_ particle: inout Particle, boundary: DisplayBoundary, mask: DigitMask?, timeStep: CGFloat) {
+        let delta = CGVector(dx: particle.velocity.dx * timeStep, dy: particle.velocity.dy * timeStep)
+        let travel = sqrt(delta.dx * delta.dx + delta.dy * delta.dy)
+        let targetStepDistance = max(PerformanceConfig.minimumParticleStepDistance, particle.radius * 0.75)
+        let stepCount = min(
+            PerformanceConfig.maximumParticleSubsteps,
+            max(1, Int((travel / targetStepDistance).rounded(.up)))
+        )
+        let stepDelta = CGVector(dx: delta.dx / CGFloat(stepCount), dy: delta.dy / CGFloat(stepCount))
+
+        for _ in 0..<stepCount {
+            let previousPosition = particle.position
+            particle.position.x += stepDelta.dx
+            particle.position.y += stepDelta.dy
 
             boundary.resolve(&particle)
             if let mask {
                 resolveGlyphCollision(&particle, previousPosition: previousPosition, mask: mask)
             }
             boundary.resolve(&particle)
-
-            particles[index] = particle
         }
     }
 
@@ -238,8 +253,13 @@ final class ParticleSystem {
         let sampleRadius = max(radius, 1.0)
         let deltaX = position.x - previousPosition.x
         let deltaY = position.y - previousPosition.y
-        let travel = max(abs(deltaX), abs(deltaY))
-        let stepCount = min(3, max(1, Int(ceil(travel / sampleRadius))))
+        let travel = sqrt(deltaX * deltaX + deltaY * deltaY)
+        let stepDistance = max(PerformanceConfig.minimumGlyphSweepStepDistance, sampleRadius * 0.5)
+        let stepCount = min(
+            PerformanceConfig.maximumGlyphSweepSteps,
+            max(1, Int((travel / stepDistance).rounded(.up)))
+        )
+        var lastClearPoint = previousPosition
 
         for step in 0...stepCount {
             let t = CGFloat(step) / CGFloat(stepCount)
@@ -248,36 +268,34 @@ final class ParticleSystem {
                 y: previousPosition.y + deltaY * t
             )
             if let hitPoint = contactPoint(around: samplePoint, radius: sampleRadius, mask: mask) {
-                return hitPoint
+                return refinedContactPoint(from: lastClearPoint, to: samplePoint, radius: sampleRadius, mask: mask) ?? hitPoint
             }
+            lastClearPoint = samplePoint
         }
 
         return nil
     }
 
+    private func refinedContactPoint(from start: CGPoint, to end: CGPoint, radius: CGFloat, mask: DigitMask) -> CGPoint? {
+        var low = start
+        var high = end
+        var hitPoint = contactPoint(around: end, radius: radius, mask: mask)
+
+        for _ in 0..<5 {
+            let midpoint = CGPoint(x: (low.x + high.x) * 0.5, y: (low.y + high.y) * 0.5)
+            if let midpointHit = contactPoint(around: midpoint, radius: radius, mask: mask) {
+                high = midpoint
+                hitPoint = midpointHit
+            } else {
+                low = midpoint
+            }
+        }
+
+        return hitPoint
+    }
+
     private func contactPoint(around position: CGPoint, radius: CGFloat, mask: DigitMask) -> CGPoint? {
-        guard mask.mightIntersectObstacle(center: position, radius: radius) else {
-            return nil
-        }
-
-        if mask.isObstacle(point: position) {
-            return position
-        }
-
-        let sampleRadius = max(radius, 1.0)
-        let right = CGPoint(x: position.x + sampleRadius, y: position.y)
-        if mask.isObstacle(point: right) { return right }
-
-        let left = CGPoint(x: position.x - sampleRadius, y: position.y)
-        if mask.isObstacle(point: left) { return left }
-
-        let up = CGPoint(x: position.x, y: position.y + sampleRadius)
-        if mask.isObstacle(point: up) { return up }
-
-        let down = CGPoint(x: position.x, y: position.y - sampleRadius)
-        if mask.isObstacle(point: down) { return down }
-
-        return nil
+        mask.contactPoint(around: position, radius: radius)
     }
 
     private func dot(_ vector: CGVector, _ normal: CGVector) -> CGFloat {

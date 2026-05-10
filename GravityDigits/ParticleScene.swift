@@ -25,7 +25,7 @@ final class ParticleScene: SKScene {
         anchorPoint = .zero
         backgroundColor = .black
         addChild(particleLayer)
-        digitNode.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        digitNode.anchorPoint = .zero
         digitNode.zPosition = 10
         addChild(digitNode)
         particleSystem.reset(in: size, avoiding: nil)
@@ -40,6 +40,8 @@ final class ParticleScene: SKScene {
         guard newSize.width > 1, newSize.height > 1 else { return }
 
         let roundedSize = CGSize(width: newSize.width.rounded(.down), height: newSize.height.rounded(.down))
+        let needsParticleReset = size != roundedSize
+        let needsInitialMask = digitMask == nil
         if size != roundedSize {
             size = roundedSize
             digitMask = nil
@@ -48,6 +50,9 @@ final class ParticleScene: SKScene {
         }
 
         rebuildMaskIfNeeded(force: digitMask == nil)
+        if needsParticleReset || needsInitialMask, let digitMask {
+            particleSystem.reset(in: roundedSize, avoiding: digitMask)
+        }
         ensureParticleNodes()
         renderParticles()
     }
@@ -123,7 +128,7 @@ final class ParticleScene: SKScene {
         digitMask = mask
         digitNode.texture = mask.texture
         digitNode.size = size
-        digitNode.position = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
+        digitNode.position = .zero
     }
 
     private func ensureParticleNodes() {

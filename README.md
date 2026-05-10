@@ -22,6 +22,16 @@ xcodebuild -project GravityDigits.xcodeproj -scheme GravityDigits -destination '
 
 The explicit `/tmp` DerivedData path avoids code-signing failures caused by File Provider extended attributes when this repository lives in a synced Documents folder.
 
+For physical-device signing, keep local signing values out of git:
+
+```sh
+cp Signing.example.xcconfig Signing.local.xcconfig
+$EDITOR Signing.local.xcconfig
+xcodebuild -project GravityDigits.xcodeproj -scheme GravityDigits -destination 'generic/platform=watchOS' -xcconfig Signing.local.xcconfig build
+```
+
+`Signing.local.xcconfig` is ignored by git. Do not put a real Apple Developer Team ID in `GravityDigits.xcodeproj/project.pbxproj`, README examples, or other tracked files.
+
 ## Run In Simulator
 
 The simulator does not provide live Apple Watch accelerometer input. In simulator builds, `MotionManager` uses an animated fallback gravity vector so particles keep moving and settling around the digits.
