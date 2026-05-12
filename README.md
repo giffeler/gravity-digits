@@ -4,8 +4,8 @@ Gravity Digits is a native watchOS prototype that looks like a custom digital cl
 
 ## Requirements
 
-- Xcode 26 or newer
-- watchOS simulator or a paired Apple Watch
+- Xcode 26.5 or newer
+- watchOS 26.4 or newer simulator or a paired Apple Watch
 - Swift / SwiftUI / SpriteKit / Core Motion
 
 No private APIs, network services, data collection, or background execution assumptions are used.
@@ -13,6 +13,8 @@ No private APIs, network services, data collection, or background execution assu
 ## Build
 
 Open `GravityDigits.xcodeproj` in Xcode, select the `GravityDigits` scheme, then choose a watchOS simulator or paired Apple Watch destination.
+
+The app's deployment target is watchOS 26.4. Building with the current Xcode 26.5 toolchain uses the latest watchOS SDK while keeping compatibility with watchOS 26.4 devices.
 
 From Terminal:
 
