@@ -2,7 +2,7 @@ import SpriteKit
 import SwiftUI
 import WatchKit
 
-struct WatchFaceView: View {
+struct ClockDisplayView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var motionManager = MotionManager()
     @State private var scene = ParticleScene()
@@ -56,5 +56,5 @@ struct WatchFaceView: View {
 }
 
 #Preview {
-    WatchFaceView()
+    ClockDisplayView()
 }

@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		2F8076C02C0A000100000001 /* GravityDigitsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F8076B52C0A000100000001 /* GravityDigitsApp.swift */; };
-		2F8076C12C0A000100000001 /* WatchFaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F8076B62C0A000100000001 /* WatchFaceView.swift */; };
+		2F8076C12C0A000100000001 /* ClockDisplayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F8076B62C0A000100000001 /* ClockDisplayView.swift */; };
 		2F8076C22C0A000100000001 /* ParticleScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F8076B72C0A000100000001 /* ParticleScene.swift */; };
 		2F8076C32C0A000100000001 /* ParticleSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F8076B82C0A000100000001 /* ParticleSystem.swift */; };
 		2F8076C42C0A000100000001 /* MotionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F8076B92C0A000100000001 /* MotionManager.swift */; };
@@ -20,7 +20,7 @@
 /* Begin PBXFileReference section */
 		2F8076A02C0A000100000001 /* GravityDigits.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GravityDigits.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2F8076B52C0A000100000001 /* GravityDigitsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GravityDigitsApp.swift; sourceTree = "<group>"; };
-		2F8076B62C0A000100000001 /* WatchFaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchFaceView.swift; sourceTree = "<group>"; };
+		2F8076B62C0A000100000001 /* ClockDisplayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockDisplayView.swift; sourceTree = "<group>"; };
 		2F8076B72C0A000100000001 /* ParticleScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParticleScene.swift; sourceTree = "<group>"; };
 		2F8076B82C0A000100000001 /* ParticleSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParticleSystem.swift; sourceTree = "<group>"; };
 		2F8076B92C0A000100000001 /* MotionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionManager.swift; sourceTree = "<group>"; };
@@ -54,7 +54,7 @@
 			isa = PBXGroup;
 			children = (
 				2F8076B52C0A000100000001 /* GravityDigitsApp.swift */,
-				2F8076B62C0A000100000001 /* WatchFaceView.swift */,
+				2F8076B62C0A000100000001 /* ClockDisplayView.swift */,
 				2F8076B72C0A000100000001 /* ParticleScene.swift */,
 				2F8076B82C0A000100000001 /* ParticleSystem.swift */,
 				2F8076B92C0A000100000001 /* MotionManager.swift */,
@@ -146,7 +146,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2F8076C02C0A000100000001 /* GravityDigitsApp.swift in Sources */,
-				2F8076C12C0A000100000001 /* WatchFaceView.swift in Sources */,
+				2F8076C12C0A000100000001 /* ClockDisplayView.swift in Sources */,
 				2F8076C22C0A000100000001 /* ParticleScene.swift in Sources */,
 				2F8076C32C0A000100000001 /* ParticleSystem.swift in Sources */,
 				2F8076C42C0A000100000001 /* MotionManager.swift in Sources */,

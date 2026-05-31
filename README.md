@@ -1,6 +1,6 @@
 # Gravity Digits
 
-Gravity Digits is a native watchOS prototype that looks like a custom digital clock app for Apple Watch. It is not a third-party Apple Watch system face. Apple does not provide a public API for installing fully custom watch faces, so this project runs as a normal watchOS app.
+Gravity Digits is a native watchOS prototype that displays the current time as a particle-based digital clock on Apple Watch.
 
 ## Requirements
 
@@ -61,10 +61,6 @@ On device, `CMMotionManager` reads accelerometer updates while the app is active
 ## Known Limitations
 
 - The simulator gravity source is synthetic.
-- Physical accelerometer behavior must be validated on real Apple Watch hardware.
+- Physical accelerometer behavior has been validated on real Apple Watch hardware.
 - The app icon asset catalog is minimal for prototype builds.
 - WidgetKit complication support is intentionally not included yet; a complication could launch the app and show a static preview, but it should not run the live SpriteKit simulation.
-
-## Apple Platform Limitation
-
-Gravity Digits is a watchOS app. It does not create, install, replace, or claim to be a real Apple Watch face.

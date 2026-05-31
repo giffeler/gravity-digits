@@ -4,7 +4,7 @@ import SwiftUI
 struct GravityDigitsApp: App {
     var body: some Scene {
         WindowGroup {
-            WatchFaceView()
+            ClockDisplayView()
                 .persistentSystemOverlays(.hidden)
         }
     }
