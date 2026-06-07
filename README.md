@@ -46,7 +46,9 @@ The simulator does not provide live Apple Watch accelerometer input. In simulato
 4. Select a paired Apple Watch destination.
 5. Build and run.
 
-On device, `CMMotionManager` reads accelerometer updates while the app is active. Tilting the watch changes the screen-space gravity vector. The app stops accelerometer updates when inactive.
+On device, `CMMotionManager` reads accelerometer updates while the app is active. Tilting the watch changes the screen-space gravity vector. The app stops accelerometer updates and pauses the simulation when inactive, then resumes when watchOS activates it again.
+
+watchOS can dim or turn off the display after a short period of inactivity, for example when the wrist is lowered. This is system behavior for battery life and burn-in protection. Gravity Digits does not use an extended runtime session or other workaround to keep the display awake indefinitely.
 
 ## Behavior
 
@@ -62,5 +64,6 @@ On device, `CMMotionManager` reads accelerometer updates while the app is active
 
 - The simulator gravity source is synthetic.
 - Physical accelerometer behavior has been validated on real Apple Watch hardware.
+- Display sleep is controlled by watchOS. `.persistentSystemOverlays(.hidden)` hides system overlays but does not prevent display sleep.
 - The app icon asset catalog is minimal for prototype builds.
 - WidgetKit complication support is intentionally not included yet; a complication could launch the app and show a static preview, but it should not run the live SpriteKit simulation.
