@@ -204,47 +204,56 @@ final class DigitMask {
     func contactPoint(around center: CGPoint, radius: CGFloat) -> CGPoint? {
         guard mightIntersectObstacle(center: center, radius: radius) else { return nil }
 
-        let paddedRadius = radius + (1.0 / scale)
-        let centerX = center.x * scale
-        let centerY = center.y * scale
-        let centerPixelX = Int(centerX.rounded(.down))
-        let centerPixelY = Int(centerY.rounded(.down))
-
-        if centerPixelX >= 0,
-           centerPixelY >= 0,
-           centerPixelX < width,
-           centerPixelY < height,
-           potentialContact[centerPixelY * width + centerPixelX] == 0 {
-            return nil
-        }
-
-        let radiusSquared = paddedRadius * paddedRadius * scale * scale
-        let pixelRadius = Int((paddedRadius * scale).rounded(.up))
-        let minX = max(0, centerPixelX - pixelRadius)
-        let maxX = min(width - 1, centerPixelX + pixelRadius)
-        let minY = max(0, centerPixelY - pixelRadius)
-        let maxY = min(height - 1, centerPixelY + pixelRadius)
-
-        guard minX <= maxX, minY <= maxY else { return nil }
-
-        var bestPoint: CGPoint?
-        var bestDistance = CGFloat.greatestFiniteMagnitude
-
-        for y in minY...maxY {
-            for x in minX...maxX {
-                guard bytes[y * width + x] > Self.obstacleThreshold else { continue }
-
-                let dx = CGFloat(x) + 0.5 - centerX
-                let dy = CGFloat(y) + 0.5 - centerY
-                let distance = dx * dx + dy * dy
-                if distance <= radiusSquared, distance < bestDistance {
-                    bestDistance = distance
-                    bestPoint = CGPoint(x: (CGFloat(x) + 0.5) / scale, y: (CGFloat(y) + 0.5) / scale)
+        return potentialContact.withUnsafeBufferPointer { contactBuffer in
+            bytes.withUnsafeBufferPointer { byteBuffer in
+                guard let contactBase = contactBuffer.baseAddress,
+                      let byteBase = byteBuffer.baseAddress else {
+                    return nil
                 }
+
+                let paddedRadius = radius + (1.0 / scale)
+                let centerX = center.x * scale
+                let centerY = center.y * scale
+                let centerPixelX = Int(centerX.rounded(.down))
+                let centerPixelY = Int(centerY.rounded(.down))
+
+                if centerPixelX >= 0,
+                   centerPixelY >= 0,
+                   centerPixelX < width,
+                   centerPixelY < height,
+                   contactBase[centerPixelY * width + centerPixelX] == 0 {
+                    return nil
+                }
+
+                let radiusSquared = paddedRadius * paddedRadius * scale * scale
+                let pixelRadius = Int((paddedRadius * scale).rounded(.up))
+                let minX = max(0, centerPixelX - pixelRadius)
+                let maxX = min(width - 1, centerPixelX + pixelRadius)
+                let minY = max(0, centerPixelY - pixelRadius)
+                let maxY = min(height - 1, centerPixelY + pixelRadius)
+
+                guard minX <= maxX, minY <= maxY else { return nil }
+
+                var bestPoint: CGPoint?
+                var bestDistance = CGFloat.greatestFiniteMagnitude
+
+                for y in minY...maxY {
+                    for x in minX...maxX {
+                        guard byteBase[y * width + x] > Self.obstacleThreshold else { continue }
+
+                        let dx = CGFloat(x) + 0.5 - centerX
+                        let dy = CGFloat(y) + 0.5 - centerY
+                        let distance = dx * dx + dy * dy
+                        if distance <= radiusSquared, distance < bestDistance {
+                            bestDistance = distance
+                            bestPoint = CGPoint(x: (CGFloat(x) + 0.5) / scale, y: (CGFloat(y) + 0.5) / scale)
+                        }
+                    }
+                }
+
+                return bestPoint
             }
         }
-
-        return bestPoint
     }
 
     func approximateNormal(point: CGPoint) -> CGVector {
@@ -264,7 +273,10 @@ final class DigitMask {
     private func sample(point: CGPoint) -> UInt8 {
         let pixel = pixelPoint(for: point)
         guard pixel.x >= 0, pixel.y >= 0, pixel.x < width, pixel.y < height else { return 0 }
-        return bytes[pixel.y * width + pixel.x]
+        return bytes.withUnsafeBufferPointer { buffer in
+            guard let baseAddress = buffer.baseAddress else { return 0 }
+            return baseAddress[pixel.y * width + pixel.x]
+        }
     }
 
     private func pixelPoint(for point: CGPoint) -> (x: Int, y: Int) {

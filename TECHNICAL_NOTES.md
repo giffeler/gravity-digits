@@ -16,6 +16,8 @@ Surface normals are computed only within the maximum particle-contact band aroun
 
 The mask also precomputes a conservative contact broad-phase map dilated by the largest supported particle radius. A separable horizontal-then-vertical sliding maximum produces the same square coverage in linear time. Points outside that map cannot touch any glyph pixel and skip the exact disk scan; points inside the map still use the exact pixel-level test, so collision coverage is unchanged.
 
+Exact contact and single-pixel sampling borrow unsafe buffer pointers after their coordinate ranges have been clamped, avoiding repeated Swift array bounds checks in the innermost pixel loops.
+
 On collision, a particle is pushed outward along the estimated normal. Velocity into the glyph is reflected with low restitution, then tangential velocity is damped so particles slide and settle around the digit contours instead of bouncing aggressively.
 
 When a collision or minute change leaves a particle inside a thick stroke, the system searches outward in pixel-spaced rings for the nearest center whose full particle disk is clear and still inside the display boundary. The same fallback runs after the bounded random spawn attempts, preventing the last attempted position from being accepted inside a glyph.
