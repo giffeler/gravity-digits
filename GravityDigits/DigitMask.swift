@@ -498,7 +498,13 @@ final class DigitMask {
             let candidate = (low + high) * 0.5
             let font = makeFont(size: candidate)
             let attributes: [CFString: Any] = [kCTFontAttributeName: font]
-            let attributed = CFAttributedStringCreate(nil, text as CFString, attributes as CFDictionary)!
+            guard let attributed = CFAttributedStringCreate(
+                nil,
+                text as CFString,
+                attributes as CFDictionary
+            ) else {
+                return makeFont(size: best)
+            }
             let line = CTLineCreateWithAttributedString(attributed)
             var ascent: CGFloat = 0
             var descent: CGFloat = 0
