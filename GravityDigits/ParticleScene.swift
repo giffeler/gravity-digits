@@ -14,6 +14,10 @@ final class ParticleScene: SKScene {
     private var particleTexture: SKTexture?
     private var digitMask: DigitMask?
     private var displayedMinuteKey = ""
+    private var pendingMaskKey: String?
+    private var pendingMaskSize: CGSize?
+    private var maskBuildGeneration = 0
+    private var installedMaskSinceLastUpdate = false
     private var accumulator: TimeInterval = 0
     private var previousUpdateTime: TimeInterval?
     private var frameTimeAverage: TimeInterval = PerformanceConfig.fixedTimeStep
@@ -73,7 +77,9 @@ final class ParticleScene: SKScene {
 
     private func stepSimulation(currentTime: TimeInterval) {
         guard !simulationPaused else { return }
-        let rebuiltMask = rebuildMaskIfNeeded(force: false)
+        let rebuiltMask = installedMaskSinceLastUpdate
+        installedMaskSinceLastUpdate = false
+        rebuildMaskIfNeeded(force: false)
 
         guard let previousUpdateTime else {
             self.previousUpdateTime = currentTime
@@ -104,21 +110,36 @@ final class ParticleScene: SKScene {
         adaptParticleCountIfNeeded(currentTime: currentTime)
     }
 
-    @discardableResult
-    private func rebuildMaskIfNeeded(force: Bool) -> Bool {
+    private func rebuildMaskIfNeeded(force: Bool) {
         let key = minuteKey()
-        guard force || key != displayedMinuteKey else { return false }
+        guard force || key != displayedMinuteKey else { return }
+        guard pendingMaskKey != key || pendingMaskSize != size else { return }
 
         let timeText = currentTimeText()
-        guard let mask = DigitMask.make(text: timeText, size: size) else { return false }
-        digitMask = mask
-        displayedMinuteKey = key
-        particleSystem.ejectParticles(overlapping: mask, in: size)
-        digitNode.texture = mask.texture
-        digitNode.size = size
-        digitNode.position = .zero
-        onTimeTextChanged?(timeText)
-        return true
+        let buildSize = size
+        maskBuildGeneration += 1
+        let generation = maskBuildGeneration
+        pendingMaskKey = key
+        pendingMaskSize = buildSize
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let mask = DigitMask.make(text: timeText, size: buildSize)
+            DispatchQueue.main.async {
+                guard let self, self.maskBuildGeneration == generation else { return }
+                self.pendingMaskKey = nil
+                self.pendingMaskSize = nil
+                guard self.size == buildSize, self.minuteKey() == key, let mask else { return }
+
+                self.digitMask = mask
+                self.displayedMinuteKey = key
+                self.particleSystem.ejectParticles(overlapping: mask, in: buildSize)
+                self.digitNode.texture = mask.texture
+                self.digitNode.size = buildSize
+                self.digitNode.position = .zero
+                self.installedMaskSinceLastUpdate = true
+                self.onTimeTextChanged?(timeText)
+            }
+        }
     }
 
     private func ensureParticleNodes() {

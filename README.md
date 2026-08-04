@@ -54,7 +54,7 @@ watchOS can dim or turn off the display after a short period of inactivity, for 
 
 - Displays the current time in 24-hour `HH:mm` format.
 - Exposes the same minute-updated `HH:mm` value to VoiceOver.
-- Renders the time into an offscreen bitmap mask once per minute or when layout changes.
+- Renders the time into an offscreen bitmap mask on a background queue once per minute or when layout changes.
 - Uses that same rendered texture as the visible foreground time.
 - Simulates particles from SpriteKit's render update using a fixed timestep.
 - Caps particle speed so collision substeps cannot skip thin glyph strokes.

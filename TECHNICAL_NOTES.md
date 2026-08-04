@@ -20,7 +20,7 @@ On collision, a particle is pushed outward along the estimated normal. Velocity 
 
 When a collision or minute change leaves a particle inside a thick stroke, the system searches outward in pixel-spaced rings for the nearest center whose full particle disk is clear and still inside the display boundary. The same fallback runs after the bounded random spawn attempts, preventing the last attempted position from being accepted inside a glyph.
 
-The visible time is an `SKSpriteNode` built from the same bitmap render, so the collision source and foreground digits stay aligned. The mask is rebuilt only when the minute changes or the SpriteKit scene size changes.
+The visible time is an `SKSpriteNode` built from the same bitmap render, so the collision source and foreground digits stay aligned. The mask is rebuilt on a user-initiated background queue only when the minute changes or the SpriteKit scene size changes. A generation token rejects stale results after a resize or newer request; the finished mask, texture, collision state, and accessibility value are swapped together on the main queue. Failed builds leave the displayed minute unchanged so the next scene update retries.
 
 After a successful rebuild, the scene sends the displayed `HH:mm` string to SwiftUI. The `SpriteView` is a single VoiceOver element whose accessibility value is updated from that callback.
 
