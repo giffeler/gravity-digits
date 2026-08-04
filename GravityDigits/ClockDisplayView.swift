@@ -20,7 +20,6 @@ struct ClockDisplayView: View {
             )
                 .frame(width: renderSize.width, height: renderSize.height)
                 .ignoresSafeArea()
-                .persistentSystemOverlays(.hidden)
                 .background(Color.black)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Current time")
