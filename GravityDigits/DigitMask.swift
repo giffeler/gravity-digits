@@ -289,22 +289,48 @@ final class DigitMask {
     }
 
     private static func makePotentialContactMap(bytes: [UInt8], width: Int, height: Int, scale: CGFloat) -> [UInt8] {
-        var map = [UInt8](repeating: 0, count: width * height)
         let maxPaddedRadius = (PerformanceConfig.maximumParticleRadius + (1.0 / scale)) * scale
         let pixelRadius = Int((maxPaddedRadius + 1.0).rounded(.up))
+        var horizontal = [UInt8](repeating: 0, count: width * height)
 
         for y in 0..<height {
-            for x in 0..<width where bytes[y * width + x] > obstacleThreshold {
-                let minX = max(0, x - pixelRadius)
-                let maxX = min(width - 1, x + pixelRadius)
-                let minY = max(0, y - pixelRadius)
-                let maxY = min(height - 1, y + pixelRadius)
+            let row = y * width
+            var obstacleCount = 0
+            for x in 0...min(width - 1, pixelRadius) where bytes[row + x] > obstacleThreshold {
+                obstacleCount += 1
+            }
 
-                for markY in minY...maxY {
-                    let row = markY * width
-                    for markX in minX...maxX {
-                        map[row + markX] = 1
-                    }
+            for x in 0..<width {
+                horizontal[row + x] = obstacleCount > 0 ? 1 : 0
+
+                let leavingX = x - pixelRadius
+                if leavingX >= 0, bytes[row + leavingX] > obstacleThreshold {
+                    obstacleCount -= 1
+                }
+                let enteringX = x + pixelRadius + 1
+                if enteringX < width, bytes[row + enteringX] > obstacleThreshold {
+                    obstacleCount += 1
+                }
+            }
+        }
+
+        var map = [UInt8](repeating: 0, count: width * height)
+        for x in 0..<width {
+            var contactCount = 0
+            for y in 0...min(height - 1, pixelRadius) where horizontal[y * width + x] != 0 {
+                contactCount += 1
+            }
+
+            for y in 0..<height {
+                map[y * width + x] = contactCount > 0 ? 1 : 0
+
+                let leavingY = y - pixelRadius
+                if leavingY >= 0, horizontal[leavingY * width + x] != 0 {
+                    contactCount -= 1
+                }
+                let enteringY = y + pixelRadius + 1
+                if enteringY < height, horizontal[enteringY * width + x] != 0 {
+                    contactCount += 1
                 }
             }
         }
