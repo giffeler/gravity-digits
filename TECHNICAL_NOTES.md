@@ -32,6 +32,8 @@ After a successful rebuild, the scene sends the displayed `HH:mm` string to Swif
 
 Particles are plain Swift structs with position, velocity, radius, and alpha. The app does not create SpriteKit physics bodies per particle. `ParticleSystem` performs manual integration with a fixed 30 Hz timestep, display-boundary collision, glyph collision, and light velocity damping.
 
+`ParticleScene` starts without a guessed watch size or particle allocation. After the first mask for the configured scene size finishes, it creates the maximum particle pool once while avoiding that mask. A later resize likewise performs one replacement reset after its matching mask is ready.
+
 The simulation is advanced only from `SKScene.update(_:)`, keeping simulation and rendering on the same SpriteKit frame lifecycle. There is no independent run-loop timer, so updates stop when SpriteKit is paused or not rendering.
 
 Each frame's movement is split into bounded substeps before boundary and glyph resolution. Glyph checks also sweep between the previous and current particle positions and refine the first contact point, reducing tunneling when particles accelerate quickly across thin digit strokes or the colon.

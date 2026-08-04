@@ -21,6 +21,7 @@ final class ParticleScene: SKScene {
     private var renderedActiveParticleCount = -1
     private var particleTexture: SKTexture?
     private var digitMask: DigitMask?
+    private var particleBounds: CGSize?
     private var displayedMinuteKey = ""
     private var pendingMaskKey: String?
     private var pendingMaskSize: CGSize?
@@ -34,7 +35,7 @@ final class ParticleScene: SKScene {
     private var simulationPaused = false
 
     override init() {
-        super.init(size: CGSize(width: 184, height: 224))
+        super.init(size: .zero)
         scaleMode = .resizeFill
         anchorPoint = .zero
         backgroundColor = .black
@@ -42,7 +43,6 @@ final class ParticleScene: SKScene {
         digitNode.anchorPoint = .zero
         digitNode.zPosition = 10
         addChild(digitNode)
-        particleSystem.reset(in: size, avoiding: nil)
     }
 
     required init?(coder aDecoder: NSCoder) {
@@ -54,20 +54,13 @@ final class ParticleScene: SKScene {
         guard newSize.width > 1, newSize.height > 1 else { return }
 
         let roundedSize = CGSize(width: newSize.width.rounded(.down), height: newSize.height.rounded(.down))
-        let needsParticleReset = size != roundedSize
-        let needsInitialMask = digitMask == nil
         if size != roundedSize {
             size = roundedSize
             digitMask = nil
             displayedMinuteKey = ""
-            particleSystem.reset(in: roundedSize, avoiding: nil)
         }
 
         rebuildMaskIfNeeded(force: digitMask == nil)
-        if needsParticleReset || needsInitialMask, let digitMask {
-            particleSystem.reset(in: roundedSize, avoiding: digitMask)
-        }
-        bindParticleNodes()
         renderParticles()
     }
 
@@ -142,6 +135,11 @@ final class ParticleScene: SKScene {
 
                 self.digitMask = mask
                 self.displayedMinuteKey = key
+                if self.particleBounds != buildSize {
+                    self.particleSystem.reset(in: buildSize, avoiding: mask)
+                    self.particleBounds = buildSize
+                    self.bindParticleNodes()
+                }
                 self.particleSystem.ejectParticles(overlapping: mask, in: buildSize)
                 self.digitNode.texture = mask.texture
                 self.digitNode.size = buildSize
