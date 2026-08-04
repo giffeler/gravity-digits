@@ -76,7 +76,7 @@ final class DisplayBoundary {
         )
     }
 
-    private func signedDistance(from point: CGPoint, particleRadius: CGFloat) -> CGFloat {
+    func signedDistance(from point: CGPoint, particleRadius: CGFloat) -> CGFloat {
         let shape = insetShape(for: particleRadius)
         let localX = point.x - size.width * 0.5
         let localY = point.y - size.height * 0.5
@@ -88,7 +88,7 @@ final class DisplayBoundary {
         return outsideDistance + min(max(qX, qY), 0) - shape.radius
     }
 
-    private func outwardNormal(at point: CGPoint, particleRadius: CGFloat) -> CGVector {
+    func outwardNormal(at point: CGPoint, particleRadius: CGFloat) -> CGVector {
         let shape = insetShape(for: particleRadius)
         let localX = point.x - size.width * 0.5
         let localY = point.y - size.height * 0.5
@@ -142,6 +142,11 @@ final class ParticleSystem {
 
     init(count: Int = PerformanceConfig.defaultParticleCount) {
         activeParticleCount = count
+    }
+
+    init(particles: [Particle]) {
+        self.particles = particles
+        self.activeParticleCount = particles.count
     }
 
     func reset(in bounds: CGSize, avoiding mask: DigitMask?) {

@@ -28,7 +28,7 @@ final class DigitMask {
     private let normalY: [Int8]
     private let normalBounds: PixelBounds?
     private let potentialContact: [UInt8]
-    private let obstacleBounds: CGRect?
+    private(set) var obstacleBounds: CGRect?
 
     private init(
         text: String,
@@ -109,18 +109,20 @@ final class DigitMask {
 
         guard let image = context.makeImage() else { return nil }
 
-        var alphaBytes = [UInt8](repeating: 0, count: pixelWidth * pixelHeight)
+        let alphaBytes = sceneAlphaBytes(
+            from: rgba.baseAddress,
+            pixelWidth: pixelWidth,
+            pixelHeight: pixelHeight,
+            bytesPerRow: bytesPerRow
+        )
         var minObstacleX = pixelWidth
         var minObstacleY = pixelHeight
         var maxObstacleX = -1
         var maxObstacleY = -1
 
         for y in 0..<pixelHeight {
-            let sourceRow = (pixelHeight - 1 - y) * bytesPerRow
-            let destinationRow = y * pixelWidth
             for x in 0..<pixelWidth {
-                let alpha = rgba[sourceRow + x * bytesPerPixel + 3]
-                alphaBytes[destinationRow + x] = alpha
+                let alpha = alphaBytes[y * pixelWidth + x]
                 if alpha > obstacleThreshold {
                     minObstacleX = min(minObstacleX, x)
                     minObstacleY = min(minObstacleY, y)
@@ -178,6 +180,28 @@ final class DigitMask {
             obstacleBounds: obstacleBounds,
             image: image
         )
+    }
+
+    static func sceneAlphaBytes(
+        from rgba: UnsafePointer<UInt8>?,
+        pixelWidth: Int,
+        pixelHeight: Int,
+        bytesPerRow: Int
+    ) -> [UInt8] {
+        guard let rgba else { return [] }
+        let bytesPerPixel = 4
+        var alphaBytes = [UInt8](repeating: 0, count: pixelWidth * pixelHeight)
+        alphaBytes.withUnsafeMutableBufferPointer { alphaBuffer in
+            guard let alphaBase = alphaBuffer.baseAddress else { return }
+            for y in 0..<pixelHeight {
+                let sourceRow = (pixelHeight - 1 - y) * bytesPerRow
+                let destinationRow = y * pixelWidth
+                for x in 0..<pixelWidth {
+                    alphaBase[destinationRow + x] = rgba[sourceRow + x * bytesPerPixel + 3]
+                }
+            }
+        }
+        return alphaBytes
     }
 
     func mightIntersectObstacle(center: CGPoint, radius: CGFloat) -> Bool {

@@ -38,6 +38,7 @@ final class ParticleScene: SKScene {
     private var gravityStableSince: TimeInterval?
     private var settledGravity: CGVector?
     private var isSettled = false
+    private(set) var completedSimulationStepCount = 0
 
     override init() {
         super.init(size: .zero)
@@ -115,6 +116,7 @@ final class ParticleScene: SKScene {
                 mask: digitMask,
                 timeStep: CGFloat(PerformanceConfig.fixedTimeStep)
             )
+            completedSimulationStepCount += 1
             accumulator -= PerformanceConfig.fixedTimeStep
         }
 
@@ -134,6 +136,7 @@ final class ParticleScene: SKScene {
     }
 
     private func rebuildMaskIfNeeded(force: Bool) {
+        guard size.width > 1, size.height > 1 else { return }
         let minute = minuteSnapshot()
         let key = minute.key
         guard force || key != displayedMinuteKey else { return }

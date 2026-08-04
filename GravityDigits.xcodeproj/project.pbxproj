@@ -15,7 +15,18 @@
 		2F8076C52C0A000100000001 /* DigitMask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F8076BA2C0A000100000001 /* DigitMask.swift */; };
 		2F8076C62C0A000100000001 /* PerformanceConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F8076BB2C0A000100000001 /* PerformanceConfig.swift */; };
 		2F8076C72C0A000100000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2F8076BC2C0A000100000001 /* Assets.xcassets */; };
+		2F8077C02C0A000100000001 /* GravityDigitsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F8077B02C0A000100000001 /* GravityDigitsTests.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2F8077E02C0A000100000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2F8076922C0A000100000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2F8076A52C0A000100000001;
+			remoteInfo = GravityDigits;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		2F8076A02C0A000100000001 /* GravityDigits.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GravityDigits.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -29,6 +40,8 @@
 		2F8076BC2C0A000100000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2F8076BD2C0A000100000001 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		2F8076BE2C0A000100000001 /* TECHNICAL_NOTES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = TECHNICAL_NOTES.md; sourceTree = "<group>"; };
+		2F8077A02C0A000100000001 /* GravityDigitsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GravityDigitsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2F8077B02C0A000100000001 /* GravityDigitsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GravityDigitsTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -36,6 +49,7 @@
 			isa = PBXGroup;
 			children = (
 				2F8076B02C0A000100000001 /* GravityDigits */,
+				2F8077B12C0A000100000001 /* GravityDigitsTests */,
 				2F8076BD2C0A000100000001 /* README.md */,
 				2F8076BE2C0A000100000001 /* TECHNICAL_NOTES.md */,
 				2F8076A12C0A000100000001 /* Products */,
@@ -46,6 +60,7 @@
 			isa = PBXGroup;
 			children = (
 				2F8076A02C0A000100000001 /* GravityDigits.app */,
+				2F8077A02C0A000100000001 /* GravityDigitsTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -63,6 +78,14 @@
 				2F8076BC2C0A000100000001 /* Assets.xcassets */,
 			);
 			path = GravityDigits;
+			sourceTree = "<group>";
+		};
+		2F8077B12C0A000100000001 /* GravityDigitsTests */ = {
+			isa = PBXGroup;
+			children = (
+				2F8077B02C0A000100000001 /* GravityDigitsTests.swift */,
+			);
+			path = GravityDigitsTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -85,6 +108,24 @@
 			productReference = 2F8076A02C0A000100000001 /* GravityDigits.app */;
 			productType = "com.apple.product-type.application";
 		};
+		2F8077A52C0A000100000001 /* GravityDigitsTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2F8077D02C0A000100000001 /* Build configuration list for PBXNativeTarget "GravityDigitsTests" */;
+			buildPhases = (
+				2F8077A62C0A000100000001 /* Sources */,
+				2F8077A72C0A000100000001 /* Frameworks */,
+				2F8077A82C0A000100000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				2F8077E12C0A000100000001 /* PBXTargetDependency */,
+			);
+			name = GravityDigitsTests;
+			productName = GravityDigitsTests;
+			productReference = 2F8077A02C0A000100000001 /* GravityDigitsTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -97,6 +138,10 @@
 				TargetAttributes = {
 					2F8076A52C0A000100000001 = {
 						CreatedOnToolsVersion = 26.4.1;
+					};
+					2F8077A52C0A000100000001 = {
+						CreatedOnToolsVersion = 26.4.1;
+						TestTargetID = 2F8076A52C0A000100000001;
 					};
 				};
 			};
@@ -115,6 +160,7 @@
 			projectRoot = "";
 			targets = (
 				2F8076A52C0A000100000001 /* GravityDigits */,
+				2F8077A52C0A000100000001 /* GravityDigitsTests */,
 			);
 		};
 /* End PBXProject section */
@@ -128,10 +174,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		2F8077A82C0A000100000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		2F8076A72C0A000100000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2F8077A72C0A000100000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -155,7 +215,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		2F8077A62C0A000100000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2F8077C02C0A000100000001 /* GravityDigitsTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		2F8077E12C0A000100000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2F8076A52C0A000100000001 /* GravityDigits */;
+			targetProxy = 2F8077E02C0A000100000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		2F8076D12C0A000100000001 /* Debug */ = {
@@ -328,6 +404,48 @@
 			};
 			name = Release;
 		};
+		2F8077D12C0A000100000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.gravitydigits.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GravityDigits.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/GravityDigits";
+				WATCHOS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Debug;
+		};
+		2F8077D22C0A000100000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.gravitydigits.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GravityDigits.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/GravityDigits";
+				WATCHOS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -345,6 +463,15 @@
 			buildConfigurations = (
 				2F8076D32C0A000100000001 /* Debug */,
 				2F8076D42C0A000100000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		2F8077D02C0A000100000001 /* Build configuration list for PBXNativeTarget "GravityDigitsTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2F8077D12C0A000100000001 /* Debug */,
+				2F8077D22C0A000100000001 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

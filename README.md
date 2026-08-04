@@ -24,6 +24,16 @@ xcodebuild -project GravityDigits.xcodeproj -scheme GravityDigits -destination '
 
 The explicit `/tmp` DerivedData path avoids code-signing failures caused by File Provider extended attributes when this repository lives in a synced Documents folder.
 
+Run the unit tests on an available watchOS simulator:
+
+```sh
+xcodebuild test -project GravityDigits.xcodeproj -scheme GravityDigits \
+  -destination 'platform=watchOS Simulator,name=Apple Watch SE 3 (40mm)' \
+  -derivedDataPath /tmp/gravitydigits-tests-dd
+```
+
+The tests cover rounded display geometry, mask bounds and row orientation, particle speed and containment invariants, trapped-particle ejection, safe spawning, and the SpriteKit-only update loop.
+
 For physical-device signing, keep local signing values out of git:
 
 ```sh
