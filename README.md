@@ -58,6 +58,7 @@ watchOS can dim or turn off the display after a short period of inactivity, for 
 - Simulates particles manually with a fixed timestep.
 - Caps particle speed so collision substeps cannot skip thin glyph strokes.
 - Treats white mask pixels as solid glyph obstacles.
+- Moves particles out of newly rendered digits and never deliberately spawns them inside a glyph.
 - Treats the visible watch display as a rounded solid boundary with a small inset.
 - Starts with 800 particles and can reduce the active count if frame timing is too high.
 

@@ -126,6 +126,7 @@ final class ParticleScene: SKScene {
         guard let mask = DigitMask.make(text: currentTimeText(), size: size) else { return }
         digitMask = mask
         displayedMinuteKey = key
+        particleSystem.ejectParticles(overlapping: mask, in: size)
         digitNode.texture = mask.texture
         digitNode.size = size
         digitNode.position = .zero

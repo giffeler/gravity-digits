@@ -16,6 +16,8 @@ The mask also precomputes a conservative contact broad-phase map dilated by the 
 
 On collision, a particle is pushed outward along the estimated normal. Velocity into the glyph is reflected with low restitution, then tangential velocity is damped so particles slide and settle around the digit contours instead of bouncing aggressively.
 
+When a collision or minute change leaves a particle inside a thick stroke, the system searches outward in pixel-spaced rings for the nearest center whose full particle disk is clear and still inside the display boundary. The same fallback runs after the bounded random spawn attempts, preventing the last attempted position from being accepted inside a glyph.
+
 The visible time is an `SKSpriteNode` built from the same bitmap render, so the collision source and foreground digits stay aligned. The mask is rebuilt only when the minute changes or the SpriteKit scene size changes.
 
 ## Particle Simulation

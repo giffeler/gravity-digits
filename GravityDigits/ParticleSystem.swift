@@ -166,6 +166,28 @@ final class ParticleSystem {
         }
     }
 
+    func ejectParticles(overlapping mask: DigitMask, in bounds: CGSize) {
+        guard bounds.width > 1, bounds.height > 1 else { return }
+        let boundary = DisplayBoundary(size: bounds)
+
+        for index in particles.indices {
+            var particle = particles[index]
+            guard contactPoint(around: particle.position, radius: particle.radius, mask: mask) != nil,
+                  let freePosition = nearestFreePosition(
+                    from: particle.position,
+                    radius: particle.radius,
+                    boundary: boundary,
+                    mask: mask
+                  ) else {
+                continue
+            }
+
+            particle.position = freePosition
+            boundary.resolve(&particle)
+            particles[index] = particle
+        }
+    }
+
     private func moveParticle(_ particle: inout Particle, boundary: DisplayBoundary, mask: DigitMask?, timeStep: CGFloat) {
         let delta = CGVector(dx: particle.velocity.dx * timeStep, dy: particle.velocity.dy * timeStep)
         let travel = sqrt(delta.dx * delta.dx + delta.dy * delta.dy)
@@ -197,6 +219,15 @@ final class ParticleSystem {
             for _ in 0..<16 where collisionPoint(for: position, radius: radius, mask: mask) != nil {
                 position = boundary.randomPoint(particleRadius: radius)
             }
+            if collisionPoint(for: position, radius: radius, mask: mask) != nil,
+               let freePosition = nearestFreePosition(
+                from: position,
+                radius: radius,
+                boundary: boundary,
+                mask: mask
+               ) {
+                position = freePosition
+            }
         }
 
         return Particle(
@@ -217,14 +248,22 @@ final class ParticleSystem {
             return
         }
 
-        let normal = mask.approximateNormal(point: hitPoint)
-        let correctionStep = max(0.5, particle.radius * 0.55)
-        var attempts = 0
-        while contactPoint(around: particle.position, radius: particle.radius, mask: mask) != nil, attempts < 8 {
-            particle.position.x += normal.dx * correctionStep
-            particle.position.y += normal.dy * correctionStep
-            attempts += 1
+        let collisionPosition = particle.position
+        let boundary = DisplayBoundary(size: mask.size)
+        if let freePosition = nearestFreePosition(
+            from: collisionPosition,
+            radius: particle.radius,
+            boundary: boundary,
+            mask: mask
+        ) {
+            particle.position = freePosition
         }
+
+        let correction = CGVector(
+            dx: particle.position.x - collisionPosition.x,
+            dy: particle.position.y - collisionPosition.y
+        )
+        let normal = normalized(correction) ?? mask.approximateNormal(point: hitPoint)
 
         let velocityIntoNormal = dot(particle.velocity, normal)
         if velocityIntoNormal < 0 {
@@ -298,8 +337,48 @@ final class ParticleSystem {
         mask.contactPoint(around: position, radius: radius)
     }
 
+    private func nearestFreePosition(
+        from origin: CGPoint,
+        radius: CGFloat,
+        boundary: DisplayBoundary,
+        mask: DigitMask
+    ) -> CGPoint? {
+        if boundary.contains(point: origin, particleRadius: radius),
+           contactPoint(around: origin, radius: radius, mask: mask) == nil {
+            return origin
+        }
+
+        let ringSpacing = 1.0 / mask.scale
+        let maximumDistance = hypot(boundary.size.width, boundary.size.height)
+        let ringCount = Int((maximumDistance / ringSpacing).rounded(.up))
+
+        for ring in 1...ringCount {
+            let distance = CGFloat(ring) * ringSpacing
+            let sampleCount = max(8, Int((2.0 * .pi * distance / ringSpacing).rounded(.up)))
+            for sample in 0..<sampleCount {
+                let angle = CGFloat(sample) * 2.0 * .pi / CGFloat(sampleCount)
+                let candidate = CGPoint(
+                    x: origin.x + cos(angle) * distance,
+                    y: origin.y + sin(angle) * distance
+                )
+                guard boundary.contains(point: candidate, particleRadius: radius) else { continue }
+                if contactPoint(around: candidate, radius: radius, mask: mask) == nil {
+                    return candidate
+                }
+            }
+        }
+
+        return nil
+    }
+
     private func dot(_ vector: CGVector, _ normal: CGVector) -> CGFloat {
         vector.dx * normal.dx + vector.dy * normal.dy
+    }
+
+    private func normalized(_ vector: CGVector) -> CGVector? {
+        let length = sqrt(vector.dx * vector.dx + vector.dy * vector.dy)
+        guard length > 0.0001 else { return nil }
+        return CGVector(dx: vector.dx / length, dy: vector.dy / length)
     }
 
     private func clampVelocity(_ velocity: inout CGVector) {
