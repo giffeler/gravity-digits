@@ -133,11 +133,10 @@ final class ParticleSystem {
     func reset(in bounds: CGSize, avoiding mask: DigitMask?) {
         let boundary = DisplayBoundary(size: bounds)
         particles = []
-        particles.reserveCapacity(activeParticleCount)
-        for _ in 0..<activeParticleCount {
+        particles.reserveCapacity(PerformanceConfig.maximumParticleCount)
+        for _ in 0..<PerformanceConfig.maximumParticleCount {
             particles.append(makeParticle(in: boundary, avoiding: mask))
         }
-        activeParticleCount = min(activeParticleCount, particles.count)
     }
 
     func setActiveParticleCount(_ count: Int) {

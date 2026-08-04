@@ -60,7 +60,7 @@ watchOS can dim or turn off the display after a short period of inactivity, for 
 - Treats white mask pixels as solid glyph obstacles.
 - Moves particles out of newly rendered digits and never deliberately spawns them inside a glyph.
 - Treats the visible watch display as a rounded solid boundary with a small inset.
-- Starts with 800 particles and can reduce the active count if frame timing is too high.
+- Starts with 800 active particles, reduces the count when measured frame work is too high, and recovers it after sustained headroom.
 
 ## Known Limitations
 

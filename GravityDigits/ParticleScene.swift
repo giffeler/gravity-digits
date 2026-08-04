@@ -71,7 +71,7 @@ final class ParticleScene: SKScene {
 
     private func stepSimulation(currentTime: TimeInterval) {
         guard !simulationPaused else { return }
-        rebuildMaskIfNeeded(force: false)
+        let rebuiltMask = rebuildMaskIfNeeded(force: false)
 
         guard let previousUpdateTime else {
             self.previousUpdateTime = currentTime
@@ -80,9 +80,9 @@ final class ParticleScene: SKScene {
 
         let frameDelta = min(currentTime - previousUpdateTime, PerformanceConfig.maxAccumulatedTime)
         self.previousUpdateTime = currentTime
-        frameTimeAverage = frameTimeAverage * 0.92 + frameDelta * 0.08
         accumulator += frameDelta
 
+        let workStart = ProcessInfo.processInfo.systemUptime
         let gravity = motionManager?.gravityVector ?? CGVector(dx: 0, dy: -PerformanceConfig.gravityScale)
         while accumulator >= PerformanceConfig.fixedTimeStep {
             particleSystem.update(
@@ -94,21 +94,27 @@ final class ParticleScene: SKScene {
             accumulator -= PerformanceConfig.fixedTimeStep
         }
 
-        adaptParticleCountIfNeeded(currentTime: currentTime)
         renderParticles()
+        let workDuration = ProcessInfo.processInfo.systemUptime - workStart
+        if !rebuiltMask {
+            frameTimeAverage = frameTimeAverage * 0.92 + workDuration * 0.08
+        }
+        adaptParticleCountIfNeeded(currentTime: currentTime)
     }
 
-    private func rebuildMaskIfNeeded(force: Bool) {
+    @discardableResult
+    private func rebuildMaskIfNeeded(force: Bool) -> Bool {
         let key = minuteKey()
-        guard force || key != displayedMinuteKey else { return }
+        guard force || key != displayedMinuteKey else { return false }
 
-        guard let mask = DigitMask.make(text: currentTimeText(), size: size) else { return }
+        guard let mask = DigitMask.make(text: currentTimeText(), size: size) else { return false }
         digitMask = mask
         displayedMinuteKey = key
         particleSystem.ejectParticles(overlapping: mask, in: size)
         digitNode.texture = mask.texture
         digitNode.size = size
         digitNode.position = .zero
+        return true
     }
 
     private func ensureParticleNodes() {
@@ -153,6 +159,9 @@ final class ParticleScene: SKScene {
         if frameTimeAverage > PerformanceConfig.frameBudget,
            particleSystem.activeParticleCount > PerformanceConfig.minimumParticleCount {
             particleSystem.setActiveParticleCount(particleSystem.activeParticleCount - PerformanceConfig.adaptiveStep)
+        } else if frameTimeAverage < PerformanceConfig.particleRecoveryBudget,
+                  particleSystem.activeParticleCount < PerformanceConfig.defaultParticleCount {
+            particleSystem.setActiveParticleCount(particleSystem.activeParticleCount + PerformanceConfig.adaptiveStep)
         }
     }
 

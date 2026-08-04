@@ -17,6 +17,7 @@ enum PerformanceConfig {
     static let fixedTimeStep: TimeInterval = 1.0 / 30.0
     static let maxAccumulatedTime: TimeInterval = 0.12
     static let frameBudget: TimeInterval = 1.0 / 22.0
+    static let particleRecoveryBudget: TimeInterval = fixedTimeStep * 0.7
     static let adaptiveCheckInterval: TimeInterval = 2.0
     static let adaptiveStep = 100
 

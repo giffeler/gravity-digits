@@ -42,6 +42,6 @@ Simulator builds use an animated fallback vector because real watch acceleromete
 
 ## Performance Limits
 
-The default active count is 800 particles. Constants are provided for 400, 800, 1200, and 2000 particles in `PerformanceConfig`.
+The default active count is 800 particles. The system allocates the configured maximum pool of 2,000 particles during reset, while rendering and simulation are capped by the independent active count. This makes the 400, 800, 1,200, and 2,000 presets usable without reallocating the particle state.
 
-The scene targets 30 fps to keep CPU and battery use conservative. A simple adaptive check reduces active particles in 100-particle steps if observed frame timing exceeds the budget. Real battery and thermal behavior should be checked on physical Apple Watch hardware before increasing the default particle count.
+The scene targets 30 fps to keep CPU and battery use conservative. An exponentially weighted average measures actual simulation plus particle-render update work with the monotonic system uptime clock (`CACurrentMediaTime` is unavailable on watchOS); mask-rebuild frames do not enter the average. The adaptive check reduces the active count in 100-particle steps above its upper budget and restores it toward the 800-particle default only below a lower recovery budget. The gap between thresholds provides hysteresis. Real battery and thermal behavior should be checked on physical Apple Watch hardware before increasing the default particle count.
