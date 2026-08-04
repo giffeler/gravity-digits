@@ -11,6 +11,7 @@ final class ParticleScene: SKScene {
 
     private weak var motionManager: MotionManager?
     private var particleNodes: [SKSpriteNode] = []
+    private var renderedActiveParticleCount = -1
     private var particleTexture: SKTexture?
     private var digitMask: DigitMask?
     private var displayedMinuteKey = ""
@@ -58,7 +59,7 @@ final class ParticleScene: SKScene {
         if needsParticleReset || needsInitialMask, let digitMask {
             particleSystem.reset(in: roundedSize, avoiding: digitMask)
         }
-        ensureParticleNodes()
+        bindParticleNodes()
         renderParticles()
     }
 
@@ -150,30 +151,42 @@ final class ParticleScene: SKScene {
 
         while particleNodes.count < particleSystem.particles.count {
             let node = SKSpriteNode(texture: particleTexture)
+            let particle = particleSystem.particles[particleNodes.count]
             node.blendMode = .add
             node.zPosition = 1
+            node.alpha = particle.alpha
+            let diameter = particle.radius * 2.0
+            node.size = CGSize(width: diameter, height: diameter)
             particleNodes.append(node)
             particleLayer.addChild(node)
         }
+    }
+
+    private func bindParticleNodes() {
+        ensureParticleNodes()
+        for index in 0..<min(particleNodes.count, particleSystem.particles.count) {
+            let particle = particleSystem.particles[index]
+            let node = particleNodes[index]
+            node.alpha = particle.alpha
+            let diameter = particle.radius * 2.0
+            node.size = CGSize(width: diameter, height: diameter)
+        }
+        renderedActiveParticleCount = -1
     }
 
     private func renderParticles() {
         ensureParticleNodes()
         let activeCount = min(particleSystem.activeParticleCount, particleSystem.particles.count, particleNodes.count)
 
-        for index in 0..<particleNodes.count {
-            let node = particleNodes[index]
-            guard index < activeCount else {
-                node.isHidden = true
-                continue
+        if activeCount != renderedActiveParticleCount {
+            for index in 0..<particleNodes.count {
+                particleNodes[index].isHidden = index >= activeCount
             }
+            renderedActiveParticleCount = activeCount
+        }
 
-            let particle = particleSystem.particles[index]
-            node.isHidden = false
-            node.position = particle.position
-            node.alpha = particle.alpha
-            let diameter = particle.radius * 2.0
-            node.size = CGSize(width: diameter, height: diameter)
+        for index in 0..<activeCount {
+            particleNodes[index].position = particleSystem.particles[index].position
         }
     }
 

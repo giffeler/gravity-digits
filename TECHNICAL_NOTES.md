@@ -38,7 +38,7 @@ Velocity is capped at 1,200 points per second after gravity and damping are appl
 
 The display boundary is modeled as a rounded rectangle with a small inset, so particles avoid the rounded Apple Watch screen corners instead of treating the scene as a full rectangular canvas. The corner radius is tuned separately from the edge inset: the inset keeps the top, bottom, left, and right bounds aligned, while the larger corner radius better matches the visible rounded display corners. The same boundary is used when spawning particles and after collision correction, which keeps particles from getting stranded outside the visible field.
 
-Rendering uses reusable `SKSpriteNode` instances with a small circular texture. Nodes are created once and updated in place each frame; they are not created or destroyed inside `update()`.
+Rendering uses reusable `SKSpriteNode` instances with a small circular texture. Nodes are created once and updated in place; size and alpha are bound only when particle state is reset, leaving position as the only per-frame property write for each visible particle. Nodes are not created or destroyed inside `update()`.
 
 ## Motion
 
