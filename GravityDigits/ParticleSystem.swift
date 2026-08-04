@@ -8,10 +8,17 @@ struct Particle {
     var alpha: CGFloat
 }
 
-struct DisplayBoundary {
+final class DisplayBoundary {
+    private struct InsetShape {
+        let radius: CGFloat
+        let straightHalfWidth: CGFloat
+        let straightHalfHeight: CGFloat
+    }
+
     let size: CGSize
     let cornerRadius: CGFloat
     let edgeInset: CGFloat
+    private var insetShapeCache: [CGFloat: InsetShape] = [:]
 
     init(size: CGSize) {
         self.size = size
@@ -105,16 +112,22 @@ struct DisplayBoundary {
         return CGVector(dx: 0, dy: sign(localY))
     }
 
-    private func insetShape(for particleRadius: CGFloat) -> (radius: CGFloat, straightHalfWidth: CGFloat, straightHalfHeight: CGFloat) {
+    private func insetShape(for particleRadius: CGFloat) -> InsetShape {
+        if let cached = insetShapeCache[particleRadius] {
+            return cached
+        }
+
         let margin = edgeInset + particleRadius
         let halfWidth = max(0, size.width * 0.5 - margin)
         let halfHeight = max(0, size.height * 0.5 - margin)
         let radius = min(max(0, cornerRadius - margin), halfWidth, halfHeight)
-        return (
+        let shape = InsetShape(
             radius: radius,
             straightHalfWidth: max(0, halfWidth - radius),
             straightHalfHeight: max(0, halfHeight - radius)
         )
+        insetShapeCache[particleRadius] = shape
+        return shape
     }
 
     private func sign(_ value: CGFloat) -> CGFloat {
@@ -125,6 +138,7 @@ struct DisplayBoundary {
 final class ParticleSystem {
     private(set) var particles: [Particle] = []
     private(set) var activeParticleCount: Int
+    private var displayBoundary: DisplayBoundary?
 
     init(count: Int = PerformanceConfig.defaultParticleCount) {
         activeParticleCount = count
@@ -132,6 +146,7 @@ final class ParticleSystem {
 
     func reset(in bounds: CGSize, avoiding mask: DigitMask?) {
         let boundary = DisplayBoundary(size: bounds)
+        displayBoundary = boundary
         particles = []
         particles.reserveCapacity(PerformanceConfig.maximumParticleCount)
         for _ in 0..<PerformanceConfig.maximumParticleCount {
@@ -148,7 +163,7 @@ final class ParticleSystem {
 
     func update(bounds: CGSize, gravity: CGVector, mask: DigitMask?, timeStep: CGFloat) {
         guard bounds.width > 1, bounds.height > 1 else { return }
-        let boundary = DisplayBoundary(size: bounds)
+        let boundary = boundary(for: bounds)
         let count = min(activeParticleCount, particles.count)
 
         for index in 0..<count {
@@ -167,7 +182,7 @@ final class ParticleSystem {
 
     func ejectParticles(overlapping mask: DigitMask, in bounds: CGSize) {
         guard bounds.width > 1, bounds.height > 1 else { return }
-        let boundary = DisplayBoundary(size: bounds)
+        let boundary = boundary(for: bounds)
 
         for index in particles.indices {
             var particle = particles[index]
@@ -204,7 +219,12 @@ final class ParticleSystem {
 
             boundary.resolve(&particle)
             if let mask {
-                resolveGlyphCollision(&particle, previousPosition: previousPosition, mask: mask)
+                resolveGlyphCollision(
+                    &particle,
+                    previousPosition: previousPosition,
+                    boundary: boundary,
+                    mask: mask
+                )
             }
             boundary.resolve(&particle)
         }
@@ -237,7 +257,12 @@ final class ParticleSystem {
         )
     }
 
-    private func resolveGlyphCollision(_ particle: inout Particle, previousPosition: CGPoint, mask: DigitMask) {
+    private func resolveGlyphCollision(
+        _ particle: inout Particle,
+        previousPosition: CGPoint,
+        boundary: DisplayBoundary,
+        mask: DigitMask
+    ) {
         guard let hitPoint = collisionPoint(
             for: particle.position,
             previousPosition: previousPosition,
@@ -248,7 +273,6 @@ final class ParticleSystem {
         }
 
         let collisionPosition = particle.position
-        let boundary = DisplayBoundary(size: mask.size)
         if let freePosition = nearestFreePosition(
             from: collisionPosition,
             radius: particle.radius,
@@ -368,6 +392,16 @@ final class ParticleSystem {
         }
 
         return nil
+    }
+
+    private func boundary(for size: CGSize) -> DisplayBoundary {
+        if let displayBoundary, displayBoundary.size == size {
+            return displayBoundary
+        }
+
+        let newBoundary = DisplayBoundary(size: size)
+        displayBoundary = newBoundary
+        return newBoundary
     }
 
     private func dot(_ vector: CGVector, _ normal: CGVector) -> CGFloat {
