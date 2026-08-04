@@ -4,6 +4,16 @@ import Foundation
 import SpriteKit
 
 final class DigitMask {
+    private struct PixelBounds {
+        let minX: Int
+        let minY: Int
+        let maxX: Int
+        let maxY: Int
+
+        var width: Int { maxX - minX + 1 }
+        var height: Int { maxY - minY + 1 }
+    }
+
     let text: String
     let size: CGSize
     let scale: CGFloat
@@ -14,8 +24,9 @@ final class DigitMask {
     private let width: Int
     private let height: Int
     private let bytes: [UInt8]
-    private let normalX: [Float]
-    private let normalY: [Float]
+    private let normalX: [Int8]
+    private let normalY: [Int8]
+    private let normalBounds: PixelBounds?
     private let potentialContact: [UInt8]
     private let obstacleBounds: CGRect?
 
@@ -26,8 +37,9 @@ final class DigitMask {
         width: Int,
         height: Int,
         bytes: [UInt8],
-        normalX: [Float],
-        normalY: [Float],
+        normalX: [Int8],
+        normalY: [Int8],
+        normalBounds: PixelBounds?,
         potentialContact: [UInt8],
         obstacleBounds: CGRect?,
         image: CGImage
@@ -40,6 +52,7 @@ final class DigitMask {
         self.bytes = bytes
         self.normalX = normalX
         self.normalY = normalY
+        self.normalBounds = normalBounds
         self.potentialContact = potentialContact
         self.obstacleBounds = obstacleBounds
         self.texture = SKTexture(cgImage: image)
@@ -117,8 +130,15 @@ final class DigitMask {
             }
         }
 
+        let normalBounds: PixelBounds?
         let obstacleBounds: CGRect?
         if maxObstacleX >= minObstacleX, maxObstacleY >= minObstacleY {
+            normalBounds = PixelBounds(
+                minX: minObstacleX,
+                minY: minObstacleY,
+                maxX: maxObstacleX,
+                maxY: maxObstacleY
+            )
             obstacleBounds = CGRect(
                 x: CGFloat(minObstacleX) / scale,
                 y: CGFloat(minObstacleY) / scale,
@@ -126,10 +146,17 @@ final class DigitMask {
                 height: CGFloat(maxObstacleY - minObstacleY + 1) / scale
             )
         } else {
+            normalBounds = nil
             obstacleBounds = nil
         }
 
-        let normals = makeNormalField(bytes: alphaBytes, width: pixelWidth, height: pixelHeight, scale: scale)
+        let normals = makeNormalField(
+            bytes: alphaBytes,
+            width: pixelWidth,
+            height: pixelHeight,
+            scale: scale,
+            bounds: normalBounds
+        )
         let potentialContact = makePotentialContactMap(
             bytes: alphaBytes,
             width: pixelWidth,
@@ -146,6 +173,7 @@ final class DigitMask {
             bytes: alphaBytes,
             normalX: normals.x,
             normalY: normals.y,
+            normalBounds: normalBounds,
             potentialContact: potentialContact,
             obstacleBounds: obstacleBounds,
             image: image
@@ -221,12 +249,16 @@ final class DigitMask {
 
     func approximateNormal(point: CGPoint) -> CGVector {
         let pixel = pixelPoint(for: point)
-        guard pixel.x >= 0, pixel.y >= 0, pixel.x < width, pixel.y < height else {
+        guard let normalBounds,
+              pixel.x >= normalBounds.minX,
+              pixel.y >= normalBounds.minY,
+              pixel.x <= normalBounds.maxX,
+              pixel.y <= normalBounds.maxY else {
             return CGVector(dx: 0, dy: 1)
         }
 
-        let index = pixel.y * width + pixel.x
-        return CGVector(dx: CGFloat(normalX[index]), dy: CGFloat(normalY[index]))
+        let index = (pixel.y - normalBounds.minY) * normalBounds.width + pixel.x - normalBounds.minX
+        return CGVector(dx: CGFloat(normalX[index]) / 127.0, dy: CGFloat(normalY[index]) / 127.0)
     }
 
     private func sample(point: CGPoint) -> UInt8 {
@@ -241,20 +273,28 @@ final class DigitMask {
         return (x, y)
     }
 
-    private static func makeNormalField(bytes: [UInt8], width: Int, height: Int, scale: CGFloat) -> (x: [Float], y: [Float]) {
-        var normalX = [Float](repeating: 0, count: width * height)
-        var normalY = [Float](repeating: 1, count: width * height)
+    private static func makeNormalField(
+        bytes: [UInt8],
+        width: Int,
+        height: Int,
+        scale: CGFloat,
+        bounds: PixelBounds?
+    ) -> (x: [Int8], y: [Int8]) {
+        guard let bounds else { return ([], []) }
+        var normalX = [Int8](repeating: 0, count: bounds.width * bounds.height)
+        var normalY = [Int8](repeating: 127, count: bounds.width * bounds.height)
         let contactRadius = (PerformanceConfig.maximumParticleRadius + (1.0 / scale)) * scale
         let normalBandRadius = Int((contactRadius * sqrt(2.0)).rounded(.up)) + 1
         let surfaceDistance = makeSurfaceDistance(bytes: bytes, width: width, height: height)
 
-        for y in 0..<height {
-            for x in 0..<width {
-                let index = y * width + x
-                guard bytes[index] > obstacleThreshold,
-                      surfaceDistance[index] <= normalBandRadius else {
+        for y in bounds.minY...bounds.maxY {
+            for x in bounds.minX...bounds.maxX {
+                let sourceIndex = y * width + x
+                guard bytes[sourceIndex] > obstacleThreshold,
+                      surfaceDistance[sourceIndex] <= normalBandRadius else {
                     continue
                 }
+                let normalIndex = (y - bounds.minY) * bounds.width + x - bounds.minX
 
                 let left = CGFloat(alpha(atX: x - 1, y: y, bytes: bytes, width: width, height: height)) / 255.0
                 let right = CGFloat(alpha(atX: x + 1, y: y, bytes: bytes, width: width, height: height)) / 255.0
@@ -267,8 +307,8 @@ final class DigitMask {
                 let length = sqrt(outwardX * outwardX + outwardY * outwardY)
 
                 if length > 0.0001 {
-                    normalX[index] = Float(outwardX / length)
-                    normalY[index] = Float(outwardY / length)
+                    normalX[normalIndex] = quantizedNormal(outwardX / length)
+                    normalY[normalIndex] = quantizedNormal(outwardY / length)
                 } else {
                     let fallback = fallbackNormal(
                         fromX: x,
@@ -279,13 +319,18 @@ final class DigitMask {
                         scale: scale,
                         searchRadius: normalBandRadius
                     )
-                    normalX[index] = Float(fallback.dx)
-                    normalY[index] = Float(fallback.dy)
+                    normalX[normalIndex] = quantizedNormal(fallback.dx)
+                    normalY[normalIndex] = quantizedNormal(fallback.dy)
                 }
             }
         }
 
         return (normalX, normalY)
+    }
+
+    private static func quantizedNormal(_ component: CGFloat) -> Int8 {
+        let scaled = (max(-1, min(1, component)) * 127.0).rounded()
+        return Int8(scaled)
     }
 
     private static func makeSurfaceDistance(bytes: [UInt8], width: Int, height: Int) -> [Int] {
