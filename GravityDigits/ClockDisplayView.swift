@@ -4,7 +4,7 @@ import WatchKit
 
 struct ClockDisplayView: View {
     @Environment(\.scenePhase) private var scenePhase
-    @StateObject private var motionManager = MotionManager()
+    @State private var motionManager = MotionManager()
     @State private var scene = ParticleScene()
 
     var body: some View {

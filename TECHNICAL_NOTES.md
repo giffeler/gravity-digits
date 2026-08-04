@@ -38,6 +38,8 @@ Rendering uses reusable `SKSpriteNode` instances with a small circular texture. 
 
 `MotionManager` uses `CMMotionManager` accelerometer updates on physical Apple Watch hardware. The accelerometer vector is low-pass filtered, clamped, and scaled into SpriteKit screen-space acceleration.
 
+Only the physical in-plane acceleration is used. A watch lying flat therefore approaches zero simulated gravity; velocity damping lets particles coast to rest without inventing a preferred screen direction. Repeated lifecycle starts are ignored, and deinitialization stops both Core Motion and fallback updates.
+
 Simulator builds use an animated fallback vector because real watch accelerometer data is unavailable there.
 
 ## Performance Limits

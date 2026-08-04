@@ -2,13 +2,12 @@ import CoreGraphics
 import CoreMotion
 import Foundation
 
-final class MotionManager: ObservableObject {
+final class MotionManager {
     private let motionManager = CMMotionManager()
     private var fallbackTimer: Timer?
     private var smoothedUnitGravity = CGVector(dx: 0, dy: -1)
     private let smoothing: CGFloat = 0.16
-
-    private(set) var isUsingFallback = true
+    private var isStarted = false
 
     var gravityVector: CGVector {
         let unit = clamped(smoothedUnitGravity, maxMagnitude: PerformanceConfig.maxGravityMagnitude)
@@ -19,6 +18,8 @@ final class MotionManager: ObservableObject {
     }
 
     func start() {
+        guard !isStarted else { return }
+        isStarted = true
         stopFallbackTimer()
 
         #if targetEnvironment(simulator)
@@ -30,7 +31,6 @@ final class MotionManager: ObservableObject {
             return
         }
 
-        isUsingFallback = false
         motionManager.accelerometerUpdateInterval = 1.0 / 30.0
         motionManager.startAccelerometerUpdates(to: .main) { [weak self] data, _ in
             guard let self, let acceleration = data?.acceleration else { return }
@@ -40,17 +40,22 @@ final class MotionManager: ObservableObject {
     }
 
     func stop() {
+        isStarted = false
         motionManager.stopAccelerometerUpdates()
         stopFallbackTimer()
     }
 
+    deinit {
+        stop()
+    }
+
     private func ingestAccelerometer(x: Double, y: Double) {
+        // Keep the physical in-plane component: a flat watch intentionally approaches zero gravity.
         let mapped = CGVector(dx: CGFloat(x), dy: CGFloat(y))
         smoothedUnitGravity = lowPass(previous: smoothedUnitGravity, next: mapped)
     }
 
     private func startFallbackTimer(animated: Bool) {
-        isUsingFallback = true
         if !animated {
             smoothedUnitGravity = CGVector(dx: 0, dy: -1)
             return
