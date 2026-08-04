@@ -24,6 +24,8 @@ When a collision or minute change leaves a particle inside a thick stroke, the s
 
 The visible time is an `SKSpriteNode` built from the same bitmap render, so the collision source and foreground digits stay aligned. The mask is rebuilt on a user-initiated background queue only when the minute changes or the SpriteKit scene size changes. A generation token rejects stale results after a resize or newer request; the finished mask, texture, collision state, and accessibility value are swapped together on the main queue. Failed builds leave the displayed minute unchanged so the next scene update retries.
 
+The scene caches the current formatted time, minute key, and calendar minute interval. Each frame performs only date comparisons against the cached start and next-minute deadline; calendar component extraction runs after that deadline is crossed.
+
 After a successful rebuild, the scene sends the displayed `HH:mm` string to SwiftUI. The `SpriteView` is a single VoiceOver element whose accessibility value is updated from that callback.
 
 ## Particle Simulation

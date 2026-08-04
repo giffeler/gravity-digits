@@ -3,6 +3,13 @@ import Foundation
 import SpriteKit
 
 final class ParticleScene: SKScene {
+    private struct MinuteSnapshot {
+        let key: String
+        let text: String
+        let start: Date
+        let nextMinute: Date
+    }
+
     var onTimeTextChanged: ((String) -> Void)?
 
     private let particleSystem = ParticleSystem()
@@ -19,6 +26,7 @@ final class ParticleScene: SKScene {
     private var pendingMaskSize: CGSize?
     private var maskBuildGeneration = 0
     private var installedMaskSinceLastUpdate = false
+    private var cachedMinute: MinuteSnapshot?
     private var accumulator: TimeInterval = 0
     private var previousUpdateTime: TimeInterval?
     private var frameTimeAverage: TimeInterval = PerformanceConfig.fixedTimeStep
@@ -112,11 +120,12 @@ final class ParticleScene: SKScene {
     }
 
     private func rebuildMaskIfNeeded(force: Bool) {
-        let key = minuteKey()
+        let minute = minuteSnapshot()
+        let key = minute.key
         guard force || key != displayedMinuteKey else { return }
         guard pendingMaskKey != key || pendingMaskSize != size else { return }
 
-        let timeText = currentTimeText()
+        let timeText = minute.text
         let buildSize = size
         maskBuildGeneration += 1
         let generation = maskBuildGeneration
@@ -129,7 +138,7 @@ final class ParticleScene: SKScene {
                 guard let self, self.maskBuildGeneration == generation else { return }
                 self.pendingMaskKey = nil
                 self.pendingMaskSize = nil
-                guard self.size == buildSize, self.minuteKey() == key, let mask else { return }
+                guard self.size == buildSize, self.minuteSnapshot().key == key, let mask else { return }
 
                 self.digitMask = mask
                 self.displayedMinuteKey = key
@@ -203,16 +212,26 @@ final class ParticleScene: SKScene {
         }
     }
 
-    private func minuteKey() -> String {
-        let components = Calendar.current.dateComponents([.hour, .minute], from: Date())
-        return "\(components.hour ?? 0):\(components.minute ?? 0)"
-    }
+    private func minuteSnapshot(at date: Date = Date()) -> MinuteSnapshot {
+        if let cachedMinute, date >= cachedMinute.start, date < cachedMinute.nextMinute {
+            return cachedMinute
+        }
 
-    private func currentTimeText() -> String {
-        let components = Calendar.current.dateComponents([.hour, .minute], from: Date())
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.hour, .minute], from: date)
         let hour = components.hour ?? 0
         let minute = components.minute ?? 0
-        return String(format: "%02d:%02d", hour, minute)
+        let interval = calendar.dateInterval(of: .minute, for: date)
+        let start = interval?.start ?? date
+        let nextMinute = interval?.end ?? date.addingTimeInterval(60)
+        let snapshot = MinuteSnapshot(
+            key: "\(hour):\(minute)",
+            text: String(format: "%02d:%02d", hour, minute),
+            start: start,
+            nextMinute: nextMinute
+        )
+        cachedMinute = snapshot
+        return snapshot
     }
 
     private static func makeParticleTexture() -> SKTexture? {
