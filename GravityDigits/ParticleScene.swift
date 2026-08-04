@@ -192,10 +192,12 @@ final class ParticleScene: SKScene {
         let dimension = 12
         let bytesPerPixel = 4
         let bytesPerRow = dimension * bytesPerPixel
-        var rgba = [UInt8](repeating: 0, count: dimension * bytesPerRow)
+        let rgba = UnsafeMutableBufferPointer<UInt8>.allocate(capacity: dimension * bytesPerRow)
+        rgba.initialize(repeating: 0)
+        defer { rgba.deallocate() }
         guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
               let context = CGContext(
-                data: &rgba,
+                data: rgba.baseAddress,
                 width: dimension,
                 height: dimension,
                 bitsPerComponent: 8,

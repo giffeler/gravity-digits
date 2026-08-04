@@ -51,11 +51,13 @@ final class DigitMask {
         let pixelHeight = max(2, Int((size.height * scale).rounded(.up)))
         let bytesPerPixel = 4
         let bytesPerRow = pixelWidth * bytesPerPixel
-        var rgba = [UInt8](repeating: 0, count: pixelHeight * bytesPerRow)
+        let rgba = UnsafeMutableBufferPointer<UInt8>.allocate(capacity: pixelHeight * bytesPerRow)
+        rgba.initialize(repeating: 0)
+        defer { rgba.deallocate() }
 
         guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) else { return nil }
         guard let context = CGContext(
-            data: &rgba,
+            data: rgba.baseAddress,
             width: pixelWidth,
             height: pixelHeight,
             bitsPerComponent: 8,
