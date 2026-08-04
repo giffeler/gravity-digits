@@ -158,6 +158,7 @@ final class ParticleSystem {
             particle.velocity.dy += gravity.dy * timeStep
             particle.velocity.dx *= PerformanceConfig.velocityDamping
             particle.velocity.dy *= PerformanceConfig.velocityDamping
+            clampVelocity(&particle.velocity)
 
             moveParticle(&particle, boundary: boundary, mask: mask, timeStep: timeStep)
 
@@ -299,5 +300,13 @@ final class ParticleSystem {
 
     private func dot(_ vector: CGVector, _ normal: CGVector) -> CGFloat {
         vector.dx * normal.dx + vector.dy * normal.dy
+    }
+
+    private func clampVelocity(_ velocity: inout CGVector) {
+        let speed = sqrt(velocity.dx * velocity.dx + velocity.dy * velocity.dy)
+        guard speed > PerformanceConfig.maximumParticleSpeed else { return }
+        let scale = PerformanceConfig.maximumParticleSpeed / speed
+        velocity.dx *= scale
+        velocity.dy *= scale
     }
 }

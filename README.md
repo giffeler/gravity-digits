@@ -56,6 +56,7 @@ watchOS can dim or turn off the display after a short period of inactivity, for 
 - Renders the time into an offscreen bitmap mask once per minute or when layout changes.
 - Uses that same rendered texture as the visible foreground time.
 - Simulates particles manually with a fixed timestep.
+- Caps particle speed so collision substeps cannot skip thin glyph strokes.
 - Treats white mask pixels as solid glyph obstacles.
 - Treats the visible watch display as a rounded solid boundary with a small inset.
 - Starts with 800 particles and can reduce the active count if frame timing is too high.
