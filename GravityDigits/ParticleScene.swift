@@ -17,7 +17,6 @@ final class ParticleScene: SKScene {
     private var frameTimeAverage: TimeInterval = PerformanceConfig.fixedTimeStep
     private var lastAdaptiveCheck: TimeInterval = 0
     private var simulationPaused = false
-    private var simulationTimer: Timer?
 
     override init() {
         super.init(size: CGSize(width: 184, height: 224))
@@ -63,31 +62,11 @@ final class ParticleScene: SKScene {
         if paused {
             previousUpdateTime = nil
             accumulator = 0
-            stopSimulationTimer()
-        } else {
-            startSimulationTimer()
         }
     }
 
     override func update(_ currentTime: TimeInterval) {
-        guard simulationTimer == nil else { return }
         stepSimulation(currentTime: currentTime)
-    }
-
-    private func startSimulationTimer() {
-        guard simulationTimer == nil else { return }
-        previousUpdateTime = nil
-
-        let timer = Timer(timeInterval: PerformanceConfig.fixedTimeStep, repeats: true) { [weak self] _ in
-            self?.stepSimulation(currentTime: Date.timeIntervalSinceReferenceDate)
-        }
-        simulationTimer = timer
-        RunLoop.main.add(timer, forMode: .common)
-    }
-
-    private func stopSimulationTimer() {
-        simulationTimer?.invalidate()
-        simulationTimer = nil
     }
 
     private func stepSimulation(currentTime: TimeInterval) {

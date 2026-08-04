@@ -24,6 +24,8 @@ The visible time is an `SKSpriteNode` built from the same bitmap render, so the 
 
 Particles are plain Swift structs with position, velocity, radius, and alpha. The app does not create SpriteKit physics bodies per particle. `ParticleSystem` performs manual integration with a fixed 30 Hz timestep, display-boundary collision, glyph collision, and light velocity damping.
 
+The simulation is advanced only from `SKScene.update(_:)`, keeping simulation and rendering on the same SpriteKit frame lifecycle. There is no independent run-loop timer, so updates stop when SpriteKit is paused or not rendering.
+
 Each frame's movement is split into bounded substeps before boundary and glyph resolution. Glyph checks also sweep between the previous and current particle positions and refine the first contact point, reducing tunneling when particles accelerate quickly across thin digit strokes or the colon.
 
 Velocity is capped at 1,200 points per second after gravity and damping are applied. At the 30 Hz fixed timestep and 48-substep ceiling, that limits each substep to about 0.833 points, below the one-point minimum particle radius.
