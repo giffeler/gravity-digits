@@ -11,6 +11,7 @@ final class ParticleScene: SKScene {
     }
 
     var onTimeTextChanged: ((String) -> Void)?
+    var onPreferredFramesPerSecondChanged: ((Int) -> Void)?
 
     private let particleSystem = ParticleSystem()
     private let particleLayer = SKNode()
@@ -33,6 +34,10 @@ final class ParticleScene: SKScene {
     private var frameTimeAverage: TimeInterval = PerformanceConfig.fixedTimeStep
     private var lastAdaptiveCheck: TimeInterval = 0
     private var simulationPaused = false
+    private var lastGravity: CGVector?
+    private var gravityStableSince: TimeInterval?
+    private var settledGravity: CGVector?
+    private var isSettled = false
 
     override init() {
         super.init(size: .zero)
@@ -70,6 +75,9 @@ final class ParticleScene: SKScene {
         if paused {
             previousUpdateTime = nil
             accumulator = 0
+            lastGravity = nil
+            gravityStableSince = nil
+            setSettled(false)
         }
     }
 
@@ -94,6 +102,12 @@ final class ParticleScene: SKScene {
 
         let workStart = ProcessInfo.processInfo.systemUptime
         let gravity = motionManager?.gravityVector ?? CGVector(dx: 0, dy: -PerformanceConfig.gravityScale)
+        updateSettleState(gravity: gravity, currentTime: currentTime)
+        if isSettled {
+            accumulator = 0
+            return
+        }
+
         while accumulator >= PerformanceConfig.fixedTimeStep {
             particleSystem.update(
                 bounds: size,
@@ -105,6 +119,13 @@ final class ParticleScene: SKScene {
         }
 
         renderParticles()
+        if !particleSystem.particles.isEmpty,
+           let gravityStableSince,
+           currentTime - gravityStableSince >= PerformanceConfig.settleDelay,
+           particleSystem.totalKineticEnergy < PerformanceConfig.settleKineticEnergyPerParticle
+            * CGFloat(particleSystem.activeParticleCount) {
+            setSettled(true, gravity: gravity)
+        }
         let workDuration = ProcessInfo.processInfo.systemUptime - workStart
         if !rebuiltMask {
             frameTimeAverage = frameTimeAverage * 0.92 + workDuration * 0.08
@@ -138,6 +159,8 @@ final class ParticleScene: SKScene {
                 if self.particleBounds != buildSize {
                     self.particleSystem.reset(in: buildSize, avoiding: mask)
                     self.particleBounds = buildSize
+                    self.gravityStableSince = nil
+                    self.setSettled(false)
                     self.bindParticleNodes()
                 }
                 self.particleSystem.ejectParticles(overlapping: mask, in: buildSize)
@@ -145,6 +168,7 @@ final class ParticleScene: SKScene {
                 self.digitNode.size = buildSize
                 self.digitNode.position = .zero
                 self.installedMaskSinceLastUpdate = true
+                self.renderParticles()
                 self.onTimeTextChanged?(timeText)
             }
         }
@@ -208,6 +232,43 @@ final class ParticleScene: SKScene {
                   particleSystem.activeParticleCount < PerformanceConfig.defaultParticleCount {
             particleSystem.setActiveParticleCount(particleSystem.activeParticleCount + PerformanceConfig.adaptiveStep)
         }
+    }
+
+    private func updateSettleState(gravity: CGVector, currentTime: TimeInterval) {
+        if let settledGravity {
+            let dx = gravity.dx - settledGravity.dx
+            let dy = gravity.dy - settledGravity.dy
+            guard dx * dx + dy * dy > PerformanceConfig.settleGravityThresholdSquared else { return }
+
+            lastGravity = gravity
+            gravityStableSince = currentTime
+            accumulator = 0
+            setSettled(false)
+            return
+        }
+
+        defer { lastGravity = gravity }
+        guard let lastGravity else {
+            gravityStableSince = currentTime
+            return
+        }
+
+        let dx = gravity.dx - lastGravity.dx
+        let dy = gravity.dy - lastGravity.dy
+        guard dx * dx + dy * dy > PerformanceConfig.settleGravityThresholdSquared else { return }
+
+        gravityStableSince = currentTime
+        accumulator = 0
+        setSettled(false)
+    }
+
+    private func setSettled(_ settled: Bool, gravity: CGVector? = nil) {
+        guard isSettled != settled else { return }
+        isSettled = settled
+        settledGravity = settled ? gravity : nil
+        onPreferredFramesPerSecondChanged?(
+            settled ? PerformanceConfig.settledFramesPerSecond : PerformanceConfig.preferredFramesPerSecond
+        )
     }
 
     private func minuteSnapshot(at date: Date = Date()) -> MinuteSnapshot {

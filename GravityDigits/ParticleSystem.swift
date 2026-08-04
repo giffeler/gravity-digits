@@ -161,6 +161,16 @@ final class ParticleSystem {
         )
     }
 
+    var totalKineticEnergy: CGFloat {
+        let count = min(activeParticleCount, particles.count)
+        guard count > 0 else { return 0 }
+        return particles[..<count].reduce(CGFloat.zero) { result, particle in
+            let speedSquared = particle.velocity.dx * particle.velocity.dx
+                + particle.velocity.dy * particle.velocity.dy
+            return result + 0.5 * speedSquared
+        }
+    }
+
     func update(bounds: CGSize, gravity: CGVector, mask: DigitMask?, timeStep: CGFloat) {
         guard bounds.width > 1, bounds.height > 1 else { return }
         let boundary = boundary(for: bounds)

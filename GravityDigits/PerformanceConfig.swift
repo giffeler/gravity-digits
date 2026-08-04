@@ -20,6 +20,10 @@ enum PerformanceConfig {
     static let particleRecoveryBudget: TimeInterval = fixedTimeStep * 0.7
     static let adaptiveCheckInterval: TimeInterval = 2.0
     static let adaptiveStep = 100
+    static let settledFramesPerSecond = 2
+    static let settleGravityThresholdSquared: CGFloat = 4.0
+    static let settleDelay: TimeInterval = 2.0
+    static let settleKineticEnergyPerParticle: CGFloat = 12.5
 
     static let maskScale: CGFloat = 2.0
     static let gravityScale: CGFloat = 420.0

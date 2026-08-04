@@ -7,6 +7,7 @@ struct ClockDisplayView: View {
     @State private var motionManager = MotionManager()
     @State private var scene = ParticleScene()
     @State private var accessibilityTime = ""
+    @State private var preferredFramesPerSecond = PerformanceConfig.preferredFramesPerSecond
 
     var body: some View {
         GeometryReader { proxy in
@@ -15,7 +16,7 @@ struct ClockDisplayView: View {
             SpriteView(
                 scene: scene,
                 isPaused: false,
-                preferredFramesPerSecond: PerformanceConfig.preferredFramesPerSecond
+                preferredFramesPerSecond: preferredFramesPerSecond
             )
                 .frame(width: renderSize.width, height: renderSize.height)
                 .ignoresSafeArea()
@@ -26,6 +27,7 @@ struct ClockDisplayView: View {
                 .accessibilityValue(accessibilityTime)
                 .onAppear {
                     scene.onTimeTextChanged = { accessibilityTime = $0 }
+                    scene.onPreferredFramesPerSecondChanged = { preferredFramesPerSecond = $0 }
                     scene.configure(size: renderSize, motionManager: motionManager)
                     scene.setSimulationPaused(false)
                     motionManager.start()

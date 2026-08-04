@@ -36,6 +36,8 @@ Particles are plain Swift structs with position, velocity, radius, and alpha. Th
 
 The simulation is advanced only from `SKScene.update(_:)`, keeping simulation and rendering on the same SpriteKit frame lifecycle. There is no independent run-loop timer, so updates stop when SpriteKit is paused or not rendering.
 
+The scene tracks changes in the filtered gravity vector and the active particles' total kinetic energy. After gravity remains stable for two seconds and mean kinetic energy falls below the configured threshold, simulation work stops and SwiftUI lowers `SpriteView` from 30 fps to 2 fps. A gravity change clears accumulated time and restores 30 fps on the next low-rate poll, so a newly moving watch wakes within about half a second. Minute changes still rebuild and render while settled.
+
 Each frame's movement is split into bounded substeps before boundary and glyph resolution. Glyph checks also sweep between the previous and current particle positions and refine the first contact point, reducing tunneling when particles accelerate quickly across thin digit strokes or the colon.
 
 Velocity is capped at 1,200 points per second after gravity and damping are applied. At the 30 Hz fixed timestep and 48-substep ceiling, that limits each substep to about 0.833 points, below the one-point minimum particle radius.
@@ -59,3 +61,5 @@ Simulator builds use an animated fallback vector because real watch acceleromete
 The default active count is 800 particles. The system allocates the configured maximum pool of 2,000 particles during reset, while rendering and simulation are capped by the independent active count. This makes the 400, 800, 1,200, and 2,000 presets usable without reallocating the particle state.
 
 The scene targets 30 fps to keep CPU and battery use conservative. An exponentially weighted average measures actual simulation plus particle-render update work with the monotonic system uptime clock (`CACurrentMediaTime` is unavailable on watchOS); mask-rebuild frames do not enter the average. The adaptive check reduces the active count in 100-particle steps above its upper budget and restores it toward the 800-particle default only below a lower recovery budget. The gap between thresholds provides hysteresis. Real battery and thermal behavior should be checked on physical Apple Watch hardware before increasing the default particle count.
+
+In a Release build on the Apple Watch SE 3 (40 mm) watchOS 26.5 simulator, instrumentation around the scene work measured approximately 0.8–1.0 ms per active update at about 30 fps. The settle prototype reduced the measured update rate to 2.00 fps and converged below 0.01 ms of scene work per settled update. These are CPU-side simulator measurements, not real-watch GPU, energy, or thermal results.

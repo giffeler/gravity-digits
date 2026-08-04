@@ -62,6 +62,7 @@ watchOS can dim or turn off the display after a short period of inactivity, for 
 - Moves particles out of newly rendered digits and never deliberately spawns them inside a glyph.
 - Treats the visible watch display as a rounded solid boundary with a small inset.
 - Starts with 800 active particles, reduces the count when measured frame work is too high, and recovers it after sustained headroom.
+- Drops simulation and rendering from 30 Hz to 2 Hz after gravity stays stable and particles settle, then restores 30 Hz when motion resumes.
 
 ## Known Limitations
 
