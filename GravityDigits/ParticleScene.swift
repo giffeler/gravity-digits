@@ -122,10 +122,10 @@ final class ParticleScene: SKScene {
     private func rebuildMaskIfNeeded(force: Bool) {
         let key = minuteKey()
         guard force || key != displayedMinuteKey else { return }
-        displayedMinuteKey = key
 
         guard let mask = DigitMask.make(text: currentTimeText(), size: size) else { return }
         digitMask = mask
+        displayedMinuteKey = key
         digitNode.texture = mask.texture
         digitNode.size = size
         digitNode.position = .zero
