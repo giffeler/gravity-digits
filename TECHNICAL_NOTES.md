@@ -20,6 +20,8 @@ When a collision or minute change leaves a particle inside a thick stroke, the s
 
 The visible time is an `SKSpriteNode` built from the same bitmap render, so the collision source and foreground digits stay aligned. The mask is rebuilt only when the minute changes or the SpriteKit scene size changes.
 
+After a successful rebuild, the scene sends the displayed `HH:mm` string to SwiftUI. The `SpriteView` is a single VoiceOver element whose accessibility value is updated from that callback.
+
 ## Particle Simulation
 
 Particles are plain Swift structs with position, velocity, radius, and alpha. The app does not create SpriteKit physics bodies per particle. `ParticleSystem` performs manual integration with a fixed 30 Hz timestep, display-boundary collision, glyph collision, and light velocity damping.

@@ -3,6 +3,8 @@ import Foundation
 import SpriteKit
 
 final class ParticleScene: SKScene {
+    var onTimeTextChanged: ((String) -> Void)?
+
     private let particleSystem = ParticleSystem()
     private let particleLayer = SKNode()
     private let digitNode = SKSpriteNode()
@@ -107,13 +109,15 @@ final class ParticleScene: SKScene {
         let key = minuteKey()
         guard force || key != displayedMinuteKey else { return false }
 
-        guard let mask = DigitMask.make(text: currentTimeText(), size: size) else { return false }
+        let timeText = currentTimeText()
+        guard let mask = DigitMask.make(text: timeText, size: size) else { return false }
         digitMask = mask
         displayedMinuteKey = key
         particleSystem.ejectParticles(overlapping: mask, in: size)
         digitNode.texture = mask.texture
         digitNode.size = size
         digitNode.position = .zero
+        onTimeTextChanged?(timeText)
         return true
     }
 

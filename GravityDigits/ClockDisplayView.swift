@@ -6,6 +6,7 @@ struct ClockDisplayView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var motionManager = MotionManager()
     @State private var scene = ParticleScene()
+    @State private var accessibilityTime = ""
 
     var body: some View {
         GeometryReader { proxy in
@@ -20,7 +21,11 @@ struct ClockDisplayView: View {
                 .ignoresSafeArea()
                 .persistentSystemOverlays(.hidden)
                 .background(Color.black)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Current time")
+                .accessibilityValue(accessibilityTime)
                 .onAppear {
+                    scene.onTimeTextChanged = { accessibilityTime = $0 }
                     scene.configure(size: renderSize, motionManager: motionManager)
                     scene.setSimulationPaused(false)
                     motionManager.start()
