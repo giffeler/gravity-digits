@@ -244,12 +244,17 @@ final class DigitMask {
     private static func makeNormalField(bytes: [UInt8], width: Int, height: Int, scale: CGFloat) -> (x: [Float], y: [Float]) {
         var normalX = [Float](repeating: 0, count: width * height)
         var normalY = [Float](repeating: 1, count: width * height)
-        let fallbackSearchRadius = Int(max(2, 4 * scale))
+        let contactRadius = (PerformanceConfig.maximumParticleRadius + (1.0 / scale)) * scale
+        let normalBandRadius = Int((contactRadius * sqrt(2.0)).rounded(.up)) + 1
+        let surfaceDistance = makeSurfaceDistance(bytes: bytes, width: width, height: height)
 
         for y in 0..<height {
             for x in 0..<width {
                 let index = y * width + x
-                guard bytes[index] > obstacleThreshold else { continue }
+                guard bytes[index] > obstacleThreshold,
+                      surfaceDistance[index] <= normalBandRadius else {
+                    continue
+                }
 
                 let left = CGFloat(alpha(atX: x - 1, y: y, bytes: bytes, width: width, height: height)) / 255.0
                 let right = CGFloat(alpha(atX: x + 1, y: y, bytes: bytes, width: width, height: height)) / 255.0
@@ -272,7 +277,7 @@ final class DigitMask {
                         width: width,
                         height: height,
                         scale: scale,
-                        searchRadius: fallbackSearchRadius
+                        searchRadius: normalBandRadius
                     )
                     normalX[index] = Float(fallback.dx)
                     normalY[index] = Float(fallback.dy)
@@ -281,6 +286,37 @@ final class DigitMask {
         }
 
         return (normalX, normalY)
+    }
+
+    private static func makeSurfaceDistance(bytes: [UInt8], width: Int, height: Int) -> [Int] {
+        let unreachable = width + height + 1
+        var distance = [Int](repeating: unreachable, count: width * height)
+
+        for y in 0..<height {
+            for x in 0..<width {
+                let index = y * width + x
+                if bytes[index] <= obstacleThreshold {
+                    distance[index] = 0
+                    continue
+                }
+
+                let fromLeft = x == 0 ? 1 : distance[index - 1] + 1
+                let fromBelow = y == 0 ? 1 : distance[index - width] + 1
+                distance[index] = min(fromLeft, fromBelow)
+            }
+        }
+
+        for y in stride(from: height - 1, through: 0, by: -1) {
+            for x in stride(from: width - 1, through: 0, by: -1) {
+                let index = y * width + x
+                guard bytes[index] > obstacleThreshold else { continue }
+                let fromRight = x == width - 1 ? 1 : distance[index + 1] + 1
+                let fromAbove = y == height - 1 ? 1 : distance[index + width] + 1
+                distance[index] = min(distance[index], fromRight, fromAbove)
+            }
+        }
+
+        return distance
     }
 
     private static func alpha(atX x: Int, y: Int, bytes: [UInt8], width: Int, height: Int) -> UInt8 {
