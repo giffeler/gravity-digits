@@ -330,7 +330,13 @@ final class ParticleSystem {
                 y: previousPosition.y + deltaY * t
             )
             if let hitPoint = contactPoint(around: samplePoint, radius: sampleRadius, mask: mask) {
-                return refinedContactPoint(from: lastClearPoint, to: samplePoint, radius: sampleRadius, mask: mask) ?? hitPoint
+                return refinedContactPoint(
+                    from: lastClearPoint,
+                    to: samplePoint,
+                    endHit: hitPoint,
+                    radius: sampleRadius,
+                    mask: mask
+                )
             }
             lastClearPoint = samplePoint
         }
@@ -338,10 +344,16 @@ final class ParticleSystem {
         return nil
     }
 
-    private func refinedContactPoint(from start: CGPoint, to end: CGPoint, radius: CGFloat, mask: DigitMask) -> CGPoint? {
+    private func refinedContactPoint(
+        from start: CGPoint,
+        to end: CGPoint,
+        endHit: CGPoint,
+        radius: CGFloat,
+        mask: DigitMask
+    ) -> CGPoint {
         var low = start
         var high = end
-        var hitPoint = contactPoint(around: end, radius: radius, mask: mask)
+        var hitPoint = endHit
 
         for _ in 0..<5 {
             let midpoint = CGPoint(x: (low.x + high.x) * 0.5, y: (low.y + high.y) * 0.5)
