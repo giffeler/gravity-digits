@@ -2,26 +2,33 @@ import CoreGraphics
 import Foundation
 
 enum ParticleCountPreset {
-    static let low = 400
-    static let medium = 800
-    static let high = 1_200
-    static let extreme = 2_000
+    static let low = 250
+    static let medium = 400
 }
 
 enum PerformanceConfig {
     static let defaultParticleCount = ParticleCountPreset.medium
     static let minimumParticleCount = ParticleCountPreset.low
-    static let maximumParticleCount = ParticleCountPreset.extreme
+    // There is no reason to retain inactive particles above the recovery target.
+    static let maximumParticleCount = defaultParticleCount
 
     static let preferredFramesPerSecond = 30
     static let fixedTimeStep: TimeInterval = 1.0 / 30.0
     static let maxAccumulatedTime: TimeInterval = 0.12
-    static let frameBudget: TimeInterval = 1.0 / 22.0
-    static let particleRecoveryBudget: TimeInterval = fixedTimeStep * 0.7
+    static let maximumSimulationStepsPerFrame = 1
+    static let slowFrameInterval: TimeInterval = 1.0 / 24.0
+    static let recoveryFrameInterval: TimeInterval = 1.0 / 28.0
+    static let maximumFrameIntervalSample: TimeInterval = 0.2
+    static let frameWorkBudget: TimeInterval = fixedTimeStep * 0.7
+    static let particleRecoveryWorkBudget: TimeInterval = fixedTimeStep * 0.45
     static let adaptiveCheckInterval: TimeInterval = 2.0
-    static let adaptiveStep = 100
+    static let adaptiveReductionStep = 50
+    static let adaptiveRecoveryStep = 10
+    static let adaptiveRecoveryChecks = 3
+    static let particleFadeDuration: TimeInterval = 0.35
     static let settledFramesPerSecond = 2
-    static let settleGravityThresholdSquared: CGFloat = 4.0
+    // Ignore filtered accelerometer noise below roughly 0.02 g.
+    static let settleGravityThresholdSquared: CGFloat = 64.0
     static let settleDelay: TimeInterval = 2.0
     static let settleKineticEnergyPerParticle: CGFloat = 12.5
 

@@ -71,7 +71,9 @@ watchOS can dim or turn off the display after a short period of inactivity, for 
 - Treats white mask pixels as solid glyph obstacles.
 - Moves particles out of newly rendered digits and never deliberately spawns them inside a glyph.
 - Treats the visible watch display as a rounded solid boundary with a small inset.
-- Starts with 800 active particles, reduces the count when measured frame work is too high, and recovers it after sustained headroom.
+- Starts with 400 active particles, reduces the count when frame work or render cadence is too slow, and recovers in small, softly faded batches only after sustained headroom.
+- Allocates only the 400-particle recovery target instead of retaining a larger hidden SpriteKit node pool.
+- Limits fixed-step catch-up work to one simulation step per rendered frame so a delayed frame cannot cause a burst of physics work and a large visual jump.
 - Drops simulation and rendering from 30 Hz to 2 Hz after gravity stays stable and particles settle, then restores 30 Hz when motion resumes.
 
 ## Known Limitations

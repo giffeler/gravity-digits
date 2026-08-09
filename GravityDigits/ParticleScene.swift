@@ -31,8 +31,10 @@ final class ParticleScene: SKScene {
     private var cachedMinute: MinuteSnapshot?
     private var accumulator: TimeInterval = 0
     private var previousUpdateTime: TimeInterval?
-    private var frameTimeAverage: TimeInterval = PerformanceConfig.fixedTimeStep
+    private var frameWorkAverage: TimeInterval = 0
+    private var frameIntervalAverage: TimeInterval = PerformanceConfig.fixedTimeStep
     private var lastAdaptiveCheck: TimeInterval = 0
+    private var consecutiveRecoveryChecks = 0
     private var simulationPaused = false
     private var lastGravity: CGVector?
     private var gravityStableSince: TimeInterval?
@@ -97,19 +99,23 @@ final class ParticleScene: SKScene {
             return
         }
 
-        let frameDelta = min(currentTime - previousUpdateTime, PerformanceConfig.maxAccumulatedTime)
+        let unboundedFrameDelta = max(0, currentTime - previousUpdateTime)
+        let frameDelta = min(unboundedFrameDelta, PerformanceConfig.maxAccumulatedTime)
         self.previousUpdateTime = currentTime
         accumulator += frameDelta
 
         let workStart = ProcessInfo.processInfo.systemUptime
         let gravity = motionManager?.gravityVector ?? CGVector(dx: 0, dy: -PerformanceConfig.gravityScale)
+        let wasSettled = isSettled
         updateSettleState(gravity: gravity, currentTime: currentTime)
         if isSettled {
             accumulator = 0
             return
         }
 
-        while accumulator >= PerformanceConfig.fixedTimeStep {
+        var simulationStepCount = 0
+        while accumulator >= PerformanceConfig.fixedTimeStep,
+              simulationStepCount < PerformanceConfig.maximumSimulationStepsPerFrame {
             particleSystem.update(
                 bounds: size,
                 gravity: gravity,
@@ -117,11 +123,18 @@ final class ParticleScene: SKScene {
                 timeStep: CGFloat(PerformanceConfig.fixedTimeStep)
             )
             completedSimulationStepCount += 1
+            simulationStepCount += 1
             accumulator -= PerformanceConfig.fixedTimeStep
         }
+        if accumulator >= PerformanceConfig.fixedTimeStep {
+            accumulator.formTruncatingRemainder(dividingBy: PerformanceConfig.fixedTimeStep)
+        }
 
-        renderParticles()
-        if !particleSystem.particles.isEmpty,
+        if simulationStepCount > 0 {
+            renderParticles()
+        }
+        if simulationStepCount > 0,
+           !particleSystem.particles.isEmpty,
            let gravityStableSince,
            currentTime - gravityStableSince >= PerformanceConfig.settleDelay,
            particleSystem.totalKineticEnergy < PerformanceConfig.settleKineticEnergyPerParticle
@@ -129,8 +142,14 @@ final class ParticleScene: SKScene {
             setSettled(true, gravity: gravity)
         }
         let workDuration = ProcessInfo.processInfo.systemUptime - workStart
-        if !rebuiltMask {
-            frameTimeAverage = frameTimeAverage * 0.92 + workDuration * 0.08
+        if wasSettled {
+            resetPerformanceSamples()
+        } else if !rebuiltMask {
+            frameWorkAverage = frameWorkAverage * 0.92 + workDuration * 0.08
+            if unboundedFrameDelta > 0,
+               unboundedFrameDelta <= PerformanceConfig.maximumFrameIntervalSample {
+                frameIntervalAverage = frameIntervalAverage * 0.92 + unboundedFrameDelta * 0.08
+            }
         }
         adaptParticleCountIfNeeded(currentTime: currentTime)
     }
@@ -166,12 +185,22 @@ final class ParticleScene: SKScene {
                     self.setSettled(false)
                     self.bindParticleNodes()
                 }
-                self.particleSystem.ejectParticles(overlapping: mask, in: buildSize)
+                let relocatedParticleIndices = self.particleSystem.ejectParticles(
+                    overlapping: mask,
+                    in: buildSize
+                )
+                if !relocatedParticleIndices.isEmpty {
+                    self.accumulator = 0
+                    self.lastGravity = nil
+                    self.gravityStableSince = nil
+                    self.setSettled(false)
+                }
                 self.digitNode.texture = mask.texture
                 self.digitNode.size = buildSize
                 self.digitNode.position = .zero
                 self.installedMaskSinceLastUpdate = true
                 self.renderParticles()
+                self.fadeInParticles(at: relocatedParticleIndices)
                 self.onTimeTextChanged?(timeText)
             }
         }
@@ -201,11 +230,13 @@ final class ParticleScene: SKScene {
         for index in 0..<min(particleNodes.count, particleSystem.particles.count) {
             let particle = particleSystem.particles[index]
             let node = particleNodes[index]
+            node.removeAllActions()
             node.alpha = particle.alpha
+            node.isHidden = index >= particleSystem.activeParticleCount
             let diameter = particle.radius * 2.0
             node.size = CGSize(width: diameter, height: diameter)
         }
-        renderedActiveParticleCount = -1
+        renderedActiveParticleCount = particleSystem.activeParticleCount
     }
 
     private func renderParticles() {
@@ -228,13 +259,84 @@ final class ParticleScene: SKScene {
         guard currentTime - lastAdaptiveCheck >= PerformanceConfig.adaptiveCheckInterval else { return }
         lastAdaptiveCheck = currentTime
 
-        if frameTimeAverage > PerformanceConfig.frameBudget,
+        let isOverBudget = frameWorkAverage > PerformanceConfig.frameWorkBudget
+            || frameIntervalAverage > PerformanceConfig.slowFrameInterval
+        let hasRecoveryHeadroom = frameWorkAverage < PerformanceConfig.particleRecoveryWorkBudget
+            && frameIntervalAverage < PerformanceConfig.recoveryFrameInterval
+
+        if isOverBudget,
            particleSystem.activeParticleCount > PerformanceConfig.minimumParticleCount {
-            particleSystem.setActiveParticleCount(particleSystem.activeParticleCount - PerformanceConfig.adaptiveStep)
-        } else if frameTimeAverage < PerformanceConfig.particleRecoveryBudget,
+            consecutiveRecoveryChecks = 0
+            fadeOutParticles(
+                downTo: particleSystem.activeParticleCount - PerformanceConfig.adaptiveReductionStep
+            )
+        } else if hasRecoveryHeadroom,
                   particleSystem.activeParticleCount < PerformanceConfig.defaultParticleCount {
-            particleSystem.setActiveParticleCount(particleSystem.activeParticleCount + PerformanceConfig.adaptiveStep)
+            consecutiveRecoveryChecks += 1
+            guard consecutiveRecoveryChecks >= PerformanceConfig.adaptiveRecoveryChecks else { return }
+            consecutiveRecoveryChecks = 0
+            activateParticles(
+                upTo: particleSystem.activeParticleCount + PerformanceConfig.adaptiveRecoveryStep
+            )
+        } else {
+            consecutiveRecoveryChecks = 0
         }
+    }
+
+    private func fadeOutParticles(downTo requestedCount: Int) {
+        let oldCount = min(particleSystem.activeParticleCount, particleNodes.count)
+        particleSystem.setActiveParticleCount(requestedCount)
+        let newCount = min(particleSystem.activeParticleCount, particleNodes.count)
+        guard newCount < oldCount else { return }
+
+        for index in newCount..<oldCount {
+            let node = particleNodes[index]
+            node.removeAllActions()
+            node.run(.sequence([
+                .fadeOut(withDuration: PerformanceConfig.particleFadeDuration),
+                .hide()
+            ]))
+        }
+        renderedActiveParticleCount = newCount
+    }
+
+    private func activateParticles(upTo requestedCount: Int) {
+        let activatedRange = particleSystem.activateParticles(
+            upTo: requestedCount,
+            in: size,
+            avoiding: digitMask
+        )
+        guard !activatedRange.isEmpty else { return }
+
+        for index in activatedRange where index < particleNodes.count {
+            let particle = particleSystem.particles[index]
+            let node = particleNodes[index]
+            node.removeAllActions()
+            node.position = particle.position
+            node.size = CGSize(width: particle.radius * 2.0, height: particle.radius * 2.0)
+            node.alpha = 0
+            node.isHidden = false
+            node.run(.fadeAlpha(to: particle.alpha, duration: PerformanceConfig.particleFadeDuration))
+        }
+        renderedActiveParticleCount = particleSystem.activeParticleCount
+    }
+
+    private func fadeInParticles(at indices: [Int]) {
+        for index in indices where index < particleSystem.activeParticleCount && index < particleNodes.count {
+            let particle = particleSystem.particles[index]
+            let node = particleNodes[index]
+            node.removeAllActions()
+            node.alpha = 0
+            node.isHidden = false
+            node.run(.fadeAlpha(to: particle.alpha, duration: PerformanceConfig.particleFadeDuration))
+        }
+    }
+
+    private func resetPerformanceSamples() {
+        frameWorkAverage = 0
+        frameIntervalAverage = PerformanceConfig.fixedTimeStep
+        consecutiveRecoveryChecks = 0
+        lastAdaptiveCheck = 0
     }
 
     private func updateSettleState(gravity: CGVector, currentTime: TimeInterval) {

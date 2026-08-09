@@ -160,10 +160,30 @@ final class ParticleSystem {
     }
 
     func setActiveParticleCount(_ count: Int) {
-        activeParticleCount = max(
-            PerformanceConfig.minimumParticleCount,
-            min(count, min(PerformanceConfig.maximumParticleCount, particles.count))
-        )
+        let upperBound = min(PerformanceConfig.maximumParticleCount, particles.count)
+        let lowerBound = min(PerformanceConfig.minimumParticleCount, upperBound)
+        activeParticleCount = max(lowerBound, min(count, upperBound))
+    }
+
+    func activateParticles(
+        upTo requestedCount: Int,
+        in bounds: CGSize,
+        avoiding mask: DigitMask?
+    ) -> Range<Int> {
+        guard bounds.width > 1, bounds.height > 1 else {
+            return activeParticleCount..<activeParticleCount
+        }
+
+        let oldCount = min(activeParticleCount, particles.count)
+        let newCount = min(requestedCount, PerformanceConfig.maximumParticleCount, particles.count)
+        guard newCount > oldCount else { return oldCount..<oldCount }
+
+        let boundary = boundary(for: bounds)
+        for index in oldCount..<newCount {
+            particles[index] = makeParticle(in: boundary, avoiding: mask)
+        }
+        activeParticleCount = newCount
+        return oldCount..<newCount
     }
 
     var totalKineticEnergy: CGFloat {
@@ -195,26 +215,41 @@ final class ParticleSystem {
         }
     }
 
-    func ejectParticles(overlapping mask: DigitMask, in bounds: CGSize) {
-        guard bounds.width > 1, bounds.height > 1 else { return }
+    @discardableResult
+    func ejectParticles(overlapping mask: DigitMask, in bounds: CGSize) -> [Int] {
+        guard bounds.width > 1, bounds.height > 1 else { return [] }
         let boundary = boundary(for: bounds)
+        var relocatedActiveIndices: [Int] = []
 
         for index in particles.indices {
             var particle = particles[index]
-            guard contactPoint(around: particle.position, radius: particle.radius, mask: mask) != nil,
-                  let freePosition = nearestFreePosition(
-                    from: particle.position,
-                    radius: particle.radius,
-                    boundary: boundary,
-                    mask: mask
-                  ) else {
-                continue
-            }
+            guard contactPoint(around: particle.position, radius: particle.radius, mask: mask) != nil else { continue }
+
+            let freePosition = randomFreePosition(
+                radius: particle.radius,
+                boundary: boundary,
+                mask: mask
+            ) ?? nearestFreePosition(
+                from: particle.position,
+                radius: particle.radius,
+                boundary: boundary,
+                mask: mask
+            )
+            guard let freePosition else { continue }
 
             particle.position = freePosition
+            particle.velocity = CGVector(
+                dx: CGFloat.random(in: -12...12),
+                dy: CGFloat.random(in: -12...12)
+            )
             boundary.resolve(&particle)
             particles[index] = particle
+            if index < activeParticleCount {
+                relocatedActiveIndices.append(index)
+            }
         }
+
+        return relocatedActiveIndices
     }
 
     private func moveParticle(_ particle: inout Particle, boundary: DisplayBoundary, mask: DigitMask?, timeStep: CGFloat) {
@@ -247,28 +282,37 @@ final class ParticleSystem {
 
     private func makeParticle(in boundary: DisplayBoundary, avoiding mask: DigitMask?) -> Particle {
         let radius = CGFloat.random(in: PerformanceConfig.minimumParticleRadius...PerformanceConfig.maximumParticleRadius)
-        var position = boundary.randomPoint(particleRadius: radius)
-
-        if let mask {
-            for _ in 0..<16 where collisionPoint(for: position, radius: radius, mask: mask) != nil {
-                position = boundary.randomPoint(particleRadius: radius)
-            }
-            if collisionPoint(for: position, radius: radius, mask: mask) != nil,
-               let freePosition = nearestFreePosition(
-                from: position,
-                radius: radius,
-                boundary: boundary,
-                mask: mask
-               ) {
-                position = freePosition
-            }
-        }
+        let position = mask.flatMap {
+            randomFreePosition(radius: radius, boundary: boundary, mask: $0)
+        } ?? boundary.randomPoint(particleRadius: radius)
 
         return Particle(
             position: position,
             velocity: CGVector(dx: CGFloat.random(in: -12...12), dy: CGFloat.random(in: -12...12)),
             radius: radius,
             alpha: CGFloat.random(in: 0.42...0.86)
+        )
+    }
+
+    private func randomFreePosition(
+        radius: CGFloat,
+        boundary: DisplayBoundary,
+        mask: DigitMask
+    ) -> CGPoint? {
+        var lastCandidate = boundary.randomPoint(particleRadius: radius)
+        for _ in 0..<24 {
+            let candidate = boundary.randomPoint(particleRadius: radius)
+            lastCandidate = candidate
+            if contactPoint(around: candidate, radius: radius, mask: mask) == nil {
+                return candidate
+            }
+        }
+
+        return nearestFreePosition(
+            from: lastCandidate,
+            radius: radius,
+            boundary: boundary,
+            mask: mask
         )
     }
 

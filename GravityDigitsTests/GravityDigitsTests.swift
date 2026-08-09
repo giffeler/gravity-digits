@@ -71,6 +71,14 @@ final class DigitMaskTests: XCTestCase {
 }
 
 final class ParticleSystemTests: XCTestCase {
+    func testResetAllocatesOnlyTheMaximumActiveParticleCount() {
+        let system = ParticleSystem()
+        system.reset(in: CGSize(width: 184, height: 224), avoiding: nil)
+
+        XCTAssertEqual(system.particles.count, PerformanceConfig.maximumParticleCount)
+        XCTAssertEqual(system.activeParticleCount, PerformanceConfig.defaultParticleCount)
+    }
+
     func testSpeedClampKeepsSubstepTravelBelowMinimumRadius() {
         let maximumSubstepTravel = PerformanceConfig.maximumParticleSpeed
             * CGFloat(PerformanceConfig.fixedTimeStep)
@@ -104,9 +112,30 @@ final class ParticleSystemTests: XCTestCase {
             Particle(position: trappedPoint, velocity: .zero, radius: 1, alpha: 1)
         ])
 
-        system.ejectParticles(overlapping: mask, in: size)
+        let relocatedIndices = system.ejectParticles(overlapping: mask, in: size)
 
+        XCTAssertEqual(relocatedIndices, [0])
         XCTAssertNil(mask.contactPoint(around: system.particles[0].position, radius: 1))
+    }
+
+    func testReactivatedParticlesGetFreshSafePositions() throws {
+        let size = CGSize(width: 184, height: 224)
+        let mask = try XCTUnwrap(DigitMask.make(text: "12:34", size: size))
+        let system = ParticleSystem()
+        system.reset(in: size, avoiding: mask)
+        system.setActiveParticleCount(PerformanceConfig.minimumParticleCount)
+
+        let oldCount = system.activeParticleCount
+        let activatedRange = system.activateParticles(
+            upTo: oldCount + PerformanceConfig.adaptiveRecoveryStep,
+            in: size,
+            avoiding: mask
+        )
+
+        XCTAssertEqual(activatedRange, oldCount..<(oldCount + PerformanceConfig.adaptiveRecoveryStep))
+        for particle in system.particles[activatedRange] {
+            XCTAssertNil(mask.contactPoint(around: particle.position, radius: particle.radius))
+        }
     }
 
     func testActiveParticlesStayInsideBoundaryAndOutsideMask() throws {
@@ -158,5 +187,14 @@ final class ParticleSceneUpdateTests: XCTestCase {
 
         RunLoop.current.run(until: Date().addingTimeInterval(0.12))
         XCTAssertEqual(scene.completedSimulationStepCount, 1)
+    }
+
+    func testSceneLimitsCatchUpWorkAfterLongFrame() {
+        let scene = ParticleScene()
+        scene.setSimulationPaused(false)
+        scene.update(1)
+        scene.update(1 + PerformanceConfig.maxAccumulatedTime)
+
+        XCTAssertEqual(scene.completedSimulationStepCount, PerformanceConfig.maximumSimulationStepsPerFrame)
     }
 }
