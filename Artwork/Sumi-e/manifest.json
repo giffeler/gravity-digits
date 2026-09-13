@@ -1,0 +1,21 @@
+{
+  "styleguide": "https://ios.gekko.de/styleguide",
+  "edition": "0.4.1",
+  "approved_for_integration": "2026-09-13",
+  "copyright_holder": "gekko",
+  "copyright_notice": "© 2026 gekko",
+  "drawings": [
+    {
+      "id": "GD-05",
+      "source": "GD-05.png",
+      "source_sha256": "a5bbeaced0f97bea85a049c564c80370c7f38f0ce3454b1057a23cbad1d03c6d",
+      "icon_packages": [
+        "GravityDigits/GravityDigits.icon"
+      ]
+    }
+  ],
+  "source_format": "Original raster PNG; SVG files in Icon Composer are placement wrappers, not vector reconstructions.",
+  "retired_artwork": [
+    "GravityDigits/Assets.xcassets/AppIcon.appiconset"
+  ]
+}

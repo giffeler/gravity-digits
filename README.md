@@ -81,5 +81,5 @@ watchOS can dim or turn off the display after a short period of inactivity, for 
 - The simulator gravity source is synthetic.
 - Physical accelerometer behavior has been validated on real Apple Watch hardware.
 - Display sleep is controlled by watchOS. `.persistentSystemOverlays(.hidden)` hides system overlays but does not prevent display sleep.
-- The app icon asset catalog is minimal for prototype builds.
+- The app icon uses the approved Sumi-e source in `GravityDigits/GravityDigits.icon`; Xcode generates the platform renditions.
 - WidgetKit complication support is intentionally not included yet; a complication could launch the app and show a static preview, but it should not run the live SpriteKit simulation.
