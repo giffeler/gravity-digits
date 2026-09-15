@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 import SpriteKit
+import Synchronization
 
 final class ParticleScene: SKScene {
     private struct MinuteSnapshot {
@@ -10,8 +11,50 @@ final class ParticleScene: SKScene {
         let nextMinute: Date
     }
 
-    var onTimeTextChanged: ((String) -> Void)?
-    var onPreferredFramesPerSecondChanged: ((Int) -> Void)?
+    struct MaskBuildResult: Sendable {
+        let generation: Int
+        let key: String
+        let size: CGSize
+        let mask: DigitMask?
+    }
+
+    final class MaskMailbox: Sendable {
+        private let result = Mutex<MaskBuildResult?>(nil)
+
+        func publish(_ completed: MaskBuildResult) {
+            result.withLock { pending in
+                // A slow older build must never overwrite a newer completed result.
+                guard completed.generation > (pending?.generation ?? -1) else { return }
+                pending = completed
+            }
+        }
+
+        func take() -> MaskBuildResult? {
+            result.withLock { pending in
+                let completed = pending
+                pending = nil
+                return completed
+            }
+        }
+    }
+
+    // Serialize SwiftUI lifecycle calls with SpriteKit's synchronous frame callback.
+    private let sceneLock = NSRecursiveLock()
+    private let completedMask = MaskMailbox()
+    private let maskBuildQueue: DispatchQueue
+    private let currentDate: @Sendable () -> Date
+    private var timeTextCallback: (@Sendable (String) -> Void)?
+    private var frameRateCallback: (@Sendable (Int) -> Void)?
+
+    var onTimeTextChanged: (@Sendable (String) -> Void)? {
+        get { sceneLock.withLock { timeTextCallback } }
+        set { sceneLock.withLock { timeTextCallback = newValue } }
+    }
+
+    var onPreferredFramesPerSecondChanged: (@Sendable (Int) -> Void)? {
+        get { sceneLock.withLock { frameRateCallback } }
+        set { sceneLock.withLock { frameRateCallback = newValue } }
+    }
 
     private let particleSystem = ParticleSystem()
     private let particleLayer = SKNode()
@@ -40,9 +83,18 @@ final class ParticleScene: SKScene {
     private var gravityStableSince: TimeInterval?
     private var settledGravity: CGVector?
     private var isSettled = false
-    private(set) var completedSimulationStepCount = 0
+    private var simulationStepCount = 0
+    var completedSimulationStepCount: Int {
+        sceneLock.withLock { simulationStepCount }
+    }
 
-    override init() {
+    override convenience init() {
+        self.init(maskBuildQueue: .global(qos: .userInitiated))
+    }
+
+    init(maskBuildQueue: DispatchQueue, currentDate: @escaping @Sendable () -> Date = { Date() }) {
+        self.maskBuildQueue = maskBuildQueue
+        self.currentDate = currentDate
         super.init(size: .zero)
         scaleMode = .resizeFill
         anchorPoint = .zero
@@ -58,6 +110,8 @@ final class ParticleScene: SKScene {
     }
 
     func configure(size newSize: CGSize, motionManager: MotionManager) {
+        sceneLock.lock()
+        defer { sceneLock.unlock() }
         self.motionManager = motionManager
         guard newSize.width > 1, newSize.height > 1 else { return }
 
@@ -73,6 +127,8 @@ final class ParticleScene: SKScene {
     }
 
     func setSimulationPaused(_ paused: Bool) {
+        sceneLock.lock()
+        defer { sceneLock.unlock() }
         simulationPaused = paused
         isPaused = paused
         if paused {
@@ -85,11 +141,14 @@ final class ParticleScene: SKScene {
     }
 
     override func update(_ currentTime: TimeInterval) {
-        stepSimulation(currentTime: currentTime)
+        sceneLock.withLock {
+            stepSimulation(currentTime: currentTime)
+        }
     }
 
     private func stepSimulation(currentTime: TimeInterval) {
         guard !simulationPaused else { return }
+        installCompletedMaskIfNeeded()
         let rebuiltMask = installedMaskSinceLastUpdate
         installedMaskSinceLastUpdate = false
         rebuildMaskIfNeeded(force: false)
@@ -122,7 +181,7 @@ final class ParticleScene: SKScene {
                 mask: digitMask,
                 timeStep: CGFloat(PerformanceConfig.fixedTimeStep)
             )
-            completedSimulationStepCount += 1
+            self.simulationStepCount += 1
             simulationStepCount += 1
             accumulator -= PerformanceConfig.fixedTimeStep
         }
@@ -168,42 +227,44 @@ final class ParticleScene: SKScene {
         pendingMaskKey = key
         pendingMaskSize = buildSize
 
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        let completedMask = completedMask
+        maskBuildQueue.async {
             let mask = DigitMask.make(text: timeText, size: buildSize)
-            DispatchQueue.main.async {
-                guard let self, self.maskBuildGeneration == generation else { return }
-                self.pendingMaskKey = nil
-                self.pendingMaskSize = nil
-                guard self.size == buildSize, self.minuteSnapshot().key == key, let mask else { return }
-
-                self.digitMask = mask
-                self.displayedMinuteKey = key
-                if self.particleBounds != buildSize {
-                    self.particleSystem.reset(in: buildSize, avoiding: mask)
-                    self.particleBounds = buildSize
-                    self.gravityStableSince = nil
-                    self.setSettled(false)
-                    self.bindParticleNodes()
-                }
-                let relocatedParticleIndices = self.particleSystem.ejectParticles(
-                    overlapping: mask,
-                    in: buildSize
-                )
-                if !relocatedParticleIndices.isEmpty {
-                    self.accumulator = 0
-                    self.lastGravity = nil
-                    self.gravityStableSince = nil
-                    self.setSettled(false)
-                }
-                self.digitNode.texture = mask.texture
-                self.digitNode.size = buildSize
-                self.digitNode.position = .zero
-                self.installedMaskSinceLastUpdate = true
-                self.renderParticles()
-                self.fadeInParticles(at: relocatedParticleIndices)
-                self.onTimeTextChanged?(timeText)
-            }
+            let result = MaskBuildResult(generation: generation, key: key, size: buildSize, mask: mask)
+            completedMask.publish(result)
         }
+    }
+
+    private func installCompletedMaskIfNeeded() {
+        let result = completedMask.take()
+        guard let result, result.generation == maskBuildGeneration else { return }
+        pendingMaskKey = nil
+        pendingMaskSize = nil
+        guard size == result.size, minuteSnapshot().key == result.key, let mask = result.mask else { return }
+
+        digitMask = mask
+        displayedMinuteKey = result.key
+        if particleBounds != result.size {
+            particleSystem.reset(in: result.size, avoiding: mask)
+            particleBounds = result.size
+            gravityStableSince = nil
+            setSettled(false)
+            bindParticleNodes()
+        }
+        let relocatedParticleIndices = particleSystem.ejectParticles(overlapping: mask, in: result.size)
+        if !relocatedParticleIndices.isEmpty {
+            accumulator = 0
+            lastGravity = nil
+            gravityStableSince = nil
+            setSettled(false)
+        }
+        digitNode.texture = mask.makeTexture()
+        digitNode.size = result.size
+        digitNode.position = .zero
+        installedMaskSinceLastUpdate = true
+        renderParticles()
+        fadeInParticles(at: relocatedParticleIndices)
+        onTimeTextChanged?(mask.text)
     }
 
     private func ensureParticleNodes() {
@@ -376,7 +437,8 @@ final class ParticleScene: SKScene {
         )
     }
 
-    private func minuteSnapshot(at date: Date = Date()) -> MinuteSnapshot {
+    private func minuteSnapshot() -> MinuteSnapshot {
+        let date = currentDate()
         if let cachedMinute, date >= cachedMinute.start, date < cachedMinute.nextMinute {
             return cachedMinute
         }

@@ -1,16 +1,23 @@
 import CoreGraphics
 import CoreMotion
 import Foundation
+import Synchronization
 
+@MainActor
 final class MotionManager {
     private let motionManager = CMMotionManager()
     private var fallbackTimer: Timer?
-    private var smoothedUnitGravity = CGVector(dx: 0, dy: -1)
+    private nonisolated let gravitySnapshot = Mutex(CGVector(dx: 0, dy: -1))
+    private var smoothedUnitGravity: CGVector {
+        get { gravitySnapshot.withLock { $0 } }
+        set { gravitySnapshot.withLock { $0 = newValue } }
+    }
     private let smoothing: CGFloat = 0.16
     private var isStarted = false
+    private var updateGeneration = 0
 
-    var gravityVector: CGVector {
-        let unit = clamped(smoothedUnitGravity, maxMagnitude: PerformanceConfig.maxGravityMagnitude)
+    nonisolated var gravityVector: CGVector {
+        let unit = clamped(gravitySnapshot.withLock { $0 }, maxMagnitude: PerformanceConfig.maxGravityMagnitude)
         return CGVector(
             dx: unit.dx * PerformanceConfig.gravityScale,
             dy: unit.dy * PerformanceConfig.gravityScale
@@ -20,6 +27,7 @@ final class MotionManager {
     func start() {
         guard !isStarted else { return }
         isStarted = true
+        updateGeneration += 1
         stopFallbackTimer()
 
         #if targetEnvironment(simulator)
@@ -32,20 +40,25 @@ final class MotionManager {
         }
 
         motionManager.accelerometerUpdateInterval = 1.0 / 30.0
+        let generation = updateGeneration
         motionManager.startAccelerometerUpdates(to: .main) { [weak self] data, _ in
-            guard let self, let acceleration = data?.acceleration else { return }
-            self.ingestAccelerometer(x: acceleration.x, y: acceleration.y)
+            guard let acceleration = data?.acceleration else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.isStarted, self.updateGeneration == generation else { return }
+                self.ingestAccelerometer(x: acceleration.x, y: acceleration.y)
+            }
         }
         #endif
     }
 
     func stop() {
         isStarted = false
+        updateGeneration += 1
         motionManager.stopAccelerometerUpdates()
         stopFallbackTimer()
     }
 
-    deinit {
+    isolated deinit {
         stop()
     }
 
@@ -62,12 +75,15 @@ final class MotionManager {
         }
 
         let startDate = Date()
+        let generation = updateGeneration
         fallbackTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
-            guard let self else { return }
             let elapsed = Date().timeIntervalSince(startDate)
             let angle = CGFloat(elapsed * 0.45) - (.pi / 2.0)
             let animatedVector = CGVector(dx: cos(angle) * 0.65, dy: sin(angle))
-            self.smoothedUnitGravity = self.lowPass(previous: self.smoothedUnitGravity, next: animatedVector)
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.isStarted, self.updateGeneration == generation else { return }
+                self.smoothedUnitGravity = self.lowPass(previous: self.smoothedUnitGravity, next: animatedVector)
+            }
         }
     }
 
@@ -83,7 +99,7 @@ final class MotionManager {
         )
     }
 
-    private func clamped(_ vector: CGVector, maxMagnitude: CGFloat) -> CGVector {
+    private nonisolated func clamped(_ vector: CGVector, maxMagnitude: CGFloat) -> CGVector {
         let magnitude = sqrt(vector.dx * vector.dx + vector.dy * vector.dy)
         guard magnitude > maxMagnitude, magnitude > 0 else { return vector }
         let scale = maxMagnitude / magnitude

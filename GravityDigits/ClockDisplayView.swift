@@ -25,8 +25,12 @@ struct ClockDisplayView: View {
                 .accessibilityLabel("Current time")
                 .accessibilityValue(accessibilityTime)
                 .onAppear {
-                    scene.onTimeTextChanged = { accessibilityTime = $0 }
-                    scene.onPreferredFramesPerSecondChanged = { preferredFramesPerSecond = $0 }
+                    scene.onTimeTextChanged = { [timeState = _accessibilityTime] in
+                        timeState.wrappedValue = $0
+                    }
+                    scene.onPreferredFramesPerSecondChanged = { [frameRateState = _preferredFramesPerSecond] in
+                        frameRateState.wrappedValue = $0
+                    }
                     scene.configure(size: renderSize, motionManager: motionManager)
                     scene.setSimulationPaused(false)
                     motionManager.start()

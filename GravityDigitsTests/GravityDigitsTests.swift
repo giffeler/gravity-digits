@@ -1,4 +1,6 @@
 import CoreGraphics
+import SpriteKit
+import Synchronization
 import XCTest
 @testable import GravityDigits
 
@@ -178,6 +180,19 @@ final class ParticleSystemTests: XCTestCase {
 }
 
 final class ParticleSceneUpdateTests: XCTestCase {
+    func testFrameCallbackCanRunOffMainActor() {
+        let completed = expectation(description: "Background frame completed synchronously")
+        DispatchQueue.global().async {
+            XCTAssertFalse(Thread.isMainThread)
+            let scene = ParticleScene()
+            scene.update(1)
+            scene.update(1 + PerformanceConfig.fixedTimeStep + 0.001)
+            XCTAssertEqual(scene.completedSimulationStepCount, 1)
+            completed.fulfill()
+        }
+        wait(for: [completed], timeout: 5)
+    }
+
     func testSceneAdvancesOnlyWhenSpriteKitCallsUpdate() {
         let scene = ParticleScene()
         scene.setSimulationPaused(false)
@@ -196,5 +211,99 @@ final class ParticleSceneUpdateTests: XCTestCase {
         scene.update(1 + PerformanceConfig.maxAccumulatedTime)
 
         XCTAssertEqual(scene.completedSimulationStepCount, PerformanceConfig.maximumSimulationStepsPerFrame)
+    }
+}
+
+final class MaskMailboxTests: XCTestCase {
+    func testOlderCompletionCannotOverwriteNewerResult() throws {
+        let mailbox = ParticleScene.MaskMailbox()
+        mailbox.publish(.init(generation: 2, key: "12:35", size: .zero, mask: nil))
+        mailbox.publish(.init(generation: 1, key: "12:34", size: .zero, mask: nil))
+
+        let result = try XCTUnwrap(mailbox.take())
+        XCTAssertEqual(result.generation, 2)
+        XCTAssertEqual(result.key, "12:35")
+        XCTAssertNil(mailbox.take())
+    }
+}
+
+private final class MaskObservations: Sendable {
+    let times = Mutex<[String]>([])
+    let date = Mutex(Date(timeIntervalSince1970: 0))
+}
+
+@MainActor
+final class MaskHandoffTests: XCTestCase {
+    private let size = CGSize(width: 184, height: 224)
+
+    func testCompletedMaskWaitsForActiveFrame() throws {
+        let queue = DispatchQueue(label: "GravityDigitsTests.mask")
+        let scene = ParticleScene(maskBuildQueue: queue, currentDate: { Date(timeIntervalSince1970: 0) })
+        let motion = MotionManager()
+        let observations = MaskObservations()
+        scene.onTimeTextChanged = { text in observations.times.withLock { $0.append(text) } }
+        scene.configure(size: size, motionManager: motion)
+        queue.sync {}
+
+        let digit = try XCTUnwrap(scene.children.compactMap { $0 as? SKSpriteNode }.first)
+        XCTAssertNil(digit.texture)
+        XCTAssertTrue(observations.times.withLock { $0.isEmpty })
+        scene.setSimulationPaused(true)
+        scene.update(1)
+        XCTAssertNil(digit.texture)
+        XCTAssertEqual(scene.completedSimulationStepCount, 0)
+
+        scene.setSimulationPaused(false)
+        scene.update(2)
+        XCTAssertNotNil(digit.texture)
+        XCTAssertEqual(digit.size, size)
+        XCTAssertEqual(observations.times.withLock { $0.count }, 1)
+        scene.update(2 + PerformanceConfig.fixedTimeStep + 0.001)
+        XCTAssertEqual(observations.times.withLock { $0.count }, 1)
+    }
+
+    func testResizeRejectsCompletedMaskFromOldSize() throws {
+        let queue = DispatchQueue(label: "GravityDigitsTests.resize")
+        let scene = ParticleScene(maskBuildQueue: queue, currentDate: { Date(timeIntervalSince1970: 0) })
+        let motion = MotionManager()
+        let observations = MaskObservations()
+        scene.onTimeTextChanged = { text in observations.times.withLock { $0.append(text) } }
+        scene.configure(size: size, motionManager: motion)
+        queue.sync {}
+
+        let resized = CGSize(width: 198, height: 242)
+        queue.suspend()
+        scene.configure(size: resized, motionManager: motion)
+        scene.update(1)
+        let displayedBeforeNewMask = observations.times.withLock { $0.count }
+        queue.resume()
+        XCTAssertEqual(displayedBeforeNewMask, 0)
+        queue.sync {}
+        scene.update(2)
+
+        let digit = try XCTUnwrap(scene.children.compactMap { $0 as? SKSpriteNode }.first)
+        XCTAssertNotNil(digit.texture)
+        XCTAssertEqual(digit.size, resized)
+        XCTAssertEqual(observations.times.withLock { $0.count }, 1)
+    }
+
+    func testMinuteChangeRejectsCompletedMaskFromPreviousMinute() {
+        let queue = DispatchQueue(label: "GravityDigitsTests.minute")
+        let observations = MaskObservations()
+        let scene = ParticleScene(maskBuildQueue: queue, currentDate: { observations.date.withLock { $0 } })
+        let motion = MotionManager()
+        scene.onTimeTextChanged = { text in observations.times.withLock { $0.append(text) } }
+        scene.configure(size: size, motionManager: motion)
+        queue.sync {}
+
+        observations.date.withLock { $0 = $0.addingTimeInterval(60) }
+        scene.update(1)
+        XCTAssertTrue(observations.times.withLock { $0.isEmpty })
+        queue.sync {}
+        scene.update(2)
+
+        let components = Calendar.current.dateComponents([.hour, .minute], from: observations.date.withLock { $0 })
+        let expected = String(format: "%02d:%02d", components.hour!, components.minute!)
+        XCTAssertEqual(observations.times.withLock { $0 }, [expected])
     }
 }

@@ -3,8 +3,8 @@ import CoreText
 import Foundation
 import SpriteKit
 
-final class DigitMask {
-    private struct PixelBounds {
+final class DigitMask: Sendable {
+    private struct PixelBounds: Sendable {
         let minX: Int
         let minY: Int
         let maxX: Int
@@ -17,7 +17,7 @@ final class DigitMask {
     let text: String
     let size: CGSize
     let scale: CGFloat
-    let texture: SKTexture
+    private let image: CGImage
 
     private static let obstacleThreshold: UInt8 = 20
 
@@ -28,7 +28,7 @@ final class DigitMask {
     private let normalY: [Int8]
     private let normalBounds: PixelBounds?
     private let potentialContact: [UInt8]
-    private(set) var obstacleBounds: CGRect?
+    let obstacleBounds: CGRect?
 
     private init(
         text: String,
@@ -55,8 +55,14 @@ final class DigitMask {
         self.normalBounds = normalBounds
         self.potentialContact = potentialContact
         self.obstacleBounds = obstacleBounds
-        self.texture = SKTexture(cgImage: image)
-        self.texture.filteringMode = .linear
+        self.image = image
+    }
+
+    // SpriteKit objects stay on the rendering side of the immutable bitmap handoff.
+    func makeTexture() -> SKTexture {
+        let texture = SKTexture(cgImage: image)
+        texture.filteringMode = .linear
+        return texture
     }
 
     static func make(text: String, size: CGSize, scale: CGFloat = PerformanceConfig.maskScale) -> DigitMask? {

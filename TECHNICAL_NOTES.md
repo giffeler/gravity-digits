@@ -22,11 +22,17 @@ On collision, a particle is pushed outward along the estimated normal. Velocity 
 
 When an ordinary collision leaves a particle inside a thick stroke, the system searches outward in pixel-spaced rings for the nearest center whose full particle disk is clear and still inside the display boundary. At a minute change, particles covered by newly rendered strokes are instead redistributed across safe random positions and softly faded back in. This avoids an instantaneous cluster along the new glyph edges. The nearest-free fallback also runs after bounded random spawn attempts.
 
-The visible time is an `SKSpriteNode` built from the same bitmap render, so the collision source and foreground digits stay aligned. The mask is rebuilt on a user-initiated background queue only when the minute changes or the SpriteKit scene size changes. A generation token rejects stale results after a resize or newer request; the finished mask, texture, collision state, and accessibility value are swapped together on the main queue. Failed builds leave the displayed minute unchanged so the next scene update retries.
+The visible time is an `SKSpriteNode` built from the same bitmap render, so the collision source and foreground digits stay aligned. The mask is rebuilt on a user-initiated background queue only when the minute changes or the SpriteKit scene size changes. The worker publishes an immutable, checked `Sendable` mask and its source `CGImage` through a mutex-protected mailbox; it never captures the scene or creates SpriteKit objects. A generation token rejects stale results after a resize or newer request, and older completions cannot overwrite a newer pending result. The next active SpriteKit update creates the texture and swaps the mask, collision state, and accessibility value together. Failed builds leave the displayed minute unchanged so the next scene update retries. Completed results wait while the scene is paused.
 
 The scene caches the current formatted time, minute key, and calendar minute interval. Each frame performs only date comparisons against the cached start and next-minute deadline; calendar component extraction runs after that deadline is crossed.
 
 After a successful rebuild, the scene sends the displayed `HH:mm` string to SwiftUI. The `SpriteView` is a single VoiceOver element whose accessibility value is updated from that callback.
+
+## Concurrency Ownership
+
+Both targets use Swift 6 language mode with the Swift 6.4 compiler. SpriteKit's Objective-C frame callback is nonisolated, so the scene does not assume a main-actor executor. A recursive lock serializes scene configuration, pause/resume, callback registration, and synchronous frame updates. It is recursive because a frame can publish a SwiftUI callback while already holding the scene lock. Background mask work takes only the mailbox lock; it never waits for the scene lock.
+
+The `@Sendable` display callbacks capture only the corresponding SwiftUI `State` value, rather than the whole view or scene. [SwiftUI permits state mutation from any thread](https://developer.apple.com/documentation/swiftui/state), so the displayed texture and accessibility state can be published in the same synchronous frame operation without scheduling a separate simulation task.
 
 ## Particle Simulation
 
@@ -51,6 +57,8 @@ Rendering uses reusable `SKSpriteNode` instances with a small circular texture. 
 ## Motion
 
 `MotionManager` uses `CMMotionManager` accelerometer updates on physical Apple Watch hardware. The accelerometer vector is low-pass filtered, clamped, and scaled into SpriteKit screen-space acceleration.
+
+Motion lifecycle and filtering belong to the main actor. Core Motion and timer callbacks explicitly deliver samples to the main queue, with a generation check that discards queued samples after stop or restart. The scene reads a mutex-protected gravity snapshot without an actor hop. An isolated deinitializer performs cleanup on the main actor.
 
 Only the physical in-plane acceleration is used. A watch lying flat therefore approaches zero simulated gravity; velocity damping lets particles coast to rest without inventing a preferred screen direction. Repeated lifecycle starts are ignored, and deinitialization stops both Core Motion and fallback updates.
 

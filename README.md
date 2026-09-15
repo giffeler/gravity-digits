@@ -4,9 +4,9 @@ Gravity Digits is a native watchOS prototype that displays the current time as a
 
 ## Requirements
 
-- Xcode 26.5 or newer
+- Xcode 27.0 or newer with the Swift 6.4 compiler
 - watchOS 26.5 or newer simulator or a paired Apple Watch
-- Swift / SwiftUI / SpriteKit / Core Motion
+- Swift 6 language mode / SwiftUI / SpriteKit / Core Motion
 
 No private APIs, network services, data collection, or background execution assumptions are used.
 
@@ -14,7 +14,7 @@ No private APIs, network services, data collection, or background execution assu
 
 Open `GravityDigits.xcodeproj` in Xcode, select the `GravityDigits` scheme, then choose a watchOS simulator or paired Apple Watch destination.
 
-The app's deployment target is watchOS 26.5. Building with the current Xcode 26.5 toolchain uses the latest watchOS SDK and its available build optimizations.
+The app and test targets use Swift 6 language mode (`SWIFT_VERSION = 6.0`), including complete concurrency checking. The verified toolchain is Xcode 27.0 (`27A266a`) with Apple Swift 6.4 and the watchOS 27.0 SDK. The minimum supported OS remains watchOS 26.5; the compiler version and language mode are separate settings.
 
 From Terminal:
 
@@ -32,7 +32,7 @@ xcodebuild test -project GravityDigits.xcodeproj -scheme GravityDigits \
   -derivedDataPath /tmp/gravitydigits-tests-dd
 ```
 
-The tests cover rounded display geometry, mask bounds and row orientation, particle speed and containment invariants, trapped-particle ejection, safe spawning, and the SpriteKit-only update loop.
+The tests cover rounded display geometry, mask bounds and row orientation, particle speed and containment invariants, trapped-particle ejection, safe spawning, and the SpriteKit-only update loop. Concurrency regressions cover out-of-order mask completion, resize and minute-change rejection, pause/resume handoff, and a synchronous frame callback outside the main actor.
 
 For physical-device signing, keep local signing values out of git:
 
