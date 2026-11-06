@@ -42,7 +42,7 @@ $EDITOR Signing.local.xcconfig
 xcodebuild -project GravityDigits.xcodeproj -scheme GravityDigits -destination 'generic/platform=watchOS' -xcconfig Signing.local.xcconfig build
 ```
 
-`Signing.local.xcconfig` is ignored by git. Do not put a real Apple Developer Team ID in `GravityDigits.xcodeproj/project.pbxproj`, README examples, or other tracked files.
+The project and example configuration default to organization team `W4KKT72RUX`. `Signing.local.xcconfig` remains ignored for optional local overrides; credentials, certificates, and provisioning profiles must stay out of git. See [Apple Developer account](APPLE_DEVELOPER.md).
 
 ## Run In Simulator
 

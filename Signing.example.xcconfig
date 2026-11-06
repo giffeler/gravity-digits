@@ -1,6 +1,7 @@
 // Copy this file to Signing.local.xcconfig and fill in local signing values.
 // Signing.local.xcconfig is ignored by git and must not be committed.
 
-DEVELOPMENT_TEAM = YOUR_TEAM_ID
+// Organization team; see APPLE_DEVELOPER.md.
+DEVELOPMENT_TEAM = W4KKT72RUX
 // PRODUCT_BUNDLE_IDENTIFIER = com.example.gravitydigits
 CODE_SIGN_STYLE = Automatic
